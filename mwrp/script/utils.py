@@ -251,6 +251,30 @@ class Utils:
         return tuple(sorted_list_a), sort_dick
 
 
+    @staticmethod
+    def print_path(all_path, see_agent_walk,world):
+        tmp_location = []
+        for cell in all_path:
+
+            # print(f'L = {cell.location} \t h = {cell.heuristics} ')
+            tmp_location.append(cell.location)
+            tmp_word = np.copy(world.grid_map)
+            for k in cell.unseen:
+                tmp_word[k] = 2
+            for j in cell.location:
+                tmp_word[j] = 3
+            if see_agent_walk:
+                plt.figure(1)
+                plt.pcolormesh(tmp_word, edgecolors='black', linewidth=0.01)
+                plt.gca().set_aspect('equal')
+                plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
+                plt.draw()
+                plt.pause(0.001)
+                plt.clf()
+                time.sleep(0.5)
+        plt.close('all')
+        Utils.print_all_whacers(world, tmp_location)
+
 class Node:
 
     def __init__(self, parent, location, unseen, dead_agent, cost, f=0):
@@ -266,6 +290,7 @@ class Node:
         self.f = f
 
         self.dead_agent = dead_agent
+        self.first_genarate = False
         self.cost_map=self.__costmap__()
 
     def __sort__(self):
@@ -283,6 +308,47 @@ class Node:
             cost_map[cell] = sorted(cost_map[cell])
         return cost_map
 
+    def __cmp__(self,oder):
+
+        id()
+
+
+class Node:
+
+    def __init__(self, parent, location, unseen, dead_agent, cost, f=0):
+        self.parent = parent
+        self.location = location
+        self.unseen = unseen
+        self.cost = cost
+        # if heuristics==0:
+        #     self.heuristics = [0]*self.location.__len__()
+        # else:
+        #    self.heuristics = heuristics
+
+        self.f = f
+
+        self.dead_agent = dead_agent
+        self.first_genarate = False
+        self.cost_map=self.__costmap__()
+
+    def __sort__(self):
+        return tuple(sorted((self.location)))
+
+    def __costmap__(self):
+        cost_map=dict()
+        for index , cell in enumerate(self.location):
+            if cell not in cost_map:
+                cost_map[cell]=[self.cost[index]]
+            else:
+                cost_map[cell].append(self.cost[index])
+
+        for cell in cost_map.keys():
+            cost_map[cell] = sorted(cost_map[cell])
+        return cost_map
+
+    def __cmp__(self,oder):
+
+        id()
 
 class Bresenhams:
     def __init__(self, grid_map):
@@ -545,62 +611,6 @@ class lp_mtsp():
         max_u = solucion.get_objective_value()
 
         return max([round(max_u)] + cost)
-
-
-    # def get_makespan1(self, for_plot, w, pivot, n, citys, distance_dict, cost):
-    #     t = time()
-    #     self.mdl.clear_constraints()
-    #
-    #     self.add_var1(pivot, distance_dict)
-    #
-    #     all_directed_edges = list(distance_dict.keys())
-    #
-    #     all_u = {**self.u_start_and_agent, **{key: self.u_pivot[key] for key in pivot}}
-    #
-    #     for u in range(1, self.u_start_and_agent.__len__()):
-    #         self.mdl.set_var_lb(self.u_start_and_agent[u], cost[u - 1])
-    #         self.mdl.set_var_ub(self.u_start_and_agent[u], cost[u - 1])
-    #
-    #     # max_subtoor
-    #     self.mdl.add_constraints_([self.k[0] >= self.u_pivot[c] for c in pivot])
-    #
-    #     # 'out'
-    #     self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in all_directed_edges if i == c) == 1 for c in
-    #                                list(all_u.keys())[1:]])
-    #
-    #     # in
-    #     self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in all_directed_edges if j == c) == 1 for c in
-    #                                list(all_u.keys())[1:]])
-    #
-    #     self.mdl.add_constraint_(self.mdl.sum(self.x[(j, 0)] for j in all_u if j != 0) == self.m)
-    #
-    #     a, b = zip(*[(self.x[c], all_u[c[1]] == all_u[c[0]] + distance_dict[c])
-    #                  for c in distance_dict.keys() if c[0] != 0 and c[1] != 0])
-    #
-    #     self.mdl.add_indicators(a, b, [1] * a.__len__())
-    #
-    #     solucion = self.mdl.solve(log_output=False)
-    #
-    #     # print(f'solve - {time() -t}')
-    #     # cpx = self.mdl.get_engine().get_cplex()
-    #     # status = cpx.parameters.tune_problem()
-    #     # if status == cpx.parameters.tuning_status.completed:
-    #     #     print("tuned parameters:")
-    #     #     for param, value in cpx.parameters.get_changed():
-    #     #         print("{0}: {1}".format(repr(param), value))
-    #     # else:
-    #     #     print("tuning status was: {0}".format(cpx.parameters.tuning_status[status]))
-    #
-    #     if self.mdl.solve_status.name != 'OPTIMAL_SOLUTION':
-    #         print('-1')
-    #         return -1
-    #
-    #
-    #     #  self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
-    #
-    #     max_u = solucion.get_objective_value()
-    #
-    #     return max([round(max_u)] + cost)
 
     def print_SD_MTSP_on_map(self, for_plot, all_cell_location, best_x, w, p):
 
