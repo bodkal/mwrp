@@ -49,16 +49,18 @@ class Mwrp:
         self.open_is_beter=0
         self.new_is_beter=0
 
-        try:
-            self.real_dis_dic = pickle.load(open(f"config/real_dis_dic_{map_name}.p", "rb"))
-            self.centrality_dict = pickle.load(open(f"config/centrality_dict_{map_name}.p", "rb"))
-        except:
-            print('start FloydWarshall')
-            self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).floyd_warshall()
-            print('end FloydWarshall')
-            pickle.dump(self.real_dis_dic, open(f"config/real_dis_dic_{map_name}.p", "wb"))
-            pickle.dump(self.centrality_dict, open(f"config/centrality_dict_{map_name}.p", "wb"))
-        #self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).floyd_warshall()
+       # self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).floyd_warshall()
+
+        # try:
+        #     self.real_dis_dic = pickle.load(open(f"config/real_dis_dic_{map_name}.p", "rb"))
+        #     self.centrality_dict = pickle.load(open(f"config/centrality_dict_{map_name}.p", "rb"))
+        # except:
+        #     print('start FloydWarshall')
+        #     self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).floyd_warshall()
+        #     print('end FloydWarshall')
+        #     pickle.dump(self.real_dis_dic, open(f"config/real_dis_dic_{map_name}.p", "wb"))
+        #     pickle.dump(self.centrality_dict, open(f"config/centrality_dict_{map_name}.p", "wb"))
+        self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).floyd_warshall()
 
 
         self.centrality_dict = self.centrality_list_wachers(unseen_start)
@@ -210,53 +212,42 @@ class Mwrp:
         #Utils.print_all_whacers(self.world, [list(pivot.keys()) + list(agents_location)])
         return pivot
 
-    # def get_new_node(self, new_state, seen_state, new_cost, old_state):
-    #     heuristic = self.get_heuristic(new_state, seen_state)
-    #     new_node = Node(old_state, new_state, seen_state, new_cost, heuristic)
-    #     return new_node
-
-    # def find_index_to_open_makspan(self, new_node):
-    #     index_a = 0
-    #     index_b = len(self.open_list)
-    #     new_node_unseen_size=new_node.unseen.__len__()
-    #     while index_a < index_b:
-    #         mid = (index_a + index_b) // 2
-    #
-    #         data = self.open_list[mid]
-    #
-    #         if new_node.f == data.f:
-    #
-    #             if data.unseen.__len__() == new_node_unseen_size:
-    #                 if  (max(np.abs(data.cost))) < max(new_node.cost):
-    #                     index_b = mid
-    #                 else:
-    #                     index_a = mid + 1
-    #             elif data.unseen.__len__() > new_node_unseen_size:
-    #                 index_b = mid
-    #             else:
-    #                 index_a = mid + 1
-    #         elif new_node.f < data.f:
-    #             index_b = mid
-    #         else:
-    #             index_a = mid + 1
-    #     return index_a
-
-    def find_index_to_open_makspan(self, new_node):
+    # find the index in open list for the new_node
+    def find_index_to_open(self, new_node):
+        # index lb
         index_a = 0
-        index_b = len(self.open_list)
-        #all_cost_estimate = max([new_node.cost[i] + new_node.heuristics[i] for i in range(self.number_of_agent)])
 
+        # index hb
+        index_b = len(self.open_list)
+
+        if self.minimize==0:
+            # makspan cost
+            cost_new = max(new_node.cost)
+        else:
+            # soc cost
+            cost_new = sum(new_node.cost)
+
+        # binry search
         while index_a < index_b:
             mid = (index_a + index_b) // 2
-
             data = self.open_list[mid]
-
-            #tmp_abs_data_cost = max([abs(data.cost[i]) + data.heuristics[i] for i in range(self.number_of_agent)])
-
             if new_node.f == data.f:
-
+                # first tiebreaker smallest unseen is wining
                 if data.unseen.__len__() == new_node.unseen.__len__():
-                    if  (max(np.abs(data.cost))) > max(new_node.cost):
+                    if self.minimize == 0:
+                        cost_data = max(np.abs(data.cost))
+                    else:
+                        cost_data = sum(np.abs(data.cost))
+
+                    # second tiebreaker bisest cost is wining
+                    if cost_data == cost_new:
+
+                        # Third tiebreaker according to location in memory so as not to be random
+                        if id(data) > id(new_node):
+                            index_b = mid
+                        else:
+                            index_a = mid + 1
+                    elif cost_data > cost_new:
                         index_b = mid
                     else:
                         index_a = mid + 1
@@ -271,6 +262,7 @@ class Mwrp:
         return index_a
 
 
+
     def insert_to_open_list(self, new_node):
 
         state=tuple((tuple(sorted(new_node.location)), tuple(new_node.dead_agent)))
@@ -279,7 +271,7 @@ class Mwrp:
             self.genrate_node += 1
             new_node.f = self.get_heuristic(new_node)
             self.H_genrate += new_node.f
-            index = self.find_index_to_open_makspan(new_node)
+            index = self.find_index_to_open(new_node)
             self.open_list.insert(index, new_node)
             self.visit_list_dic[state] = [new_node]
 
@@ -287,7 +279,7 @@ class Mwrp:
             self.genrate_node += 1
             new_node.f = self.get_heuristic(new_node)
             self.H_genrate += new_node.f
-            index = self.find_index_to_open_makspan(new_node)
+            index = self.find_index_to_open(new_node)
             self.open_list.insert(index, new_node)
             self.visit_list_dic[state].append(new_node)
 
@@ -319,12 +311,19 @@ class Mwrp:
                     min_dis = self.real_dis_dic[tuple(sorted((k, t)))]
         return min_dis
 
-    def singelton_heuristic_makespan(self, new_node):
+    # Calculates the heuristics for Singleton
+    def singelton_heuristic(self, new_node):
+
+        #Holds the best heuristic value at any given time
         max_pivot_dist = 0
+        #     if new_node.unseen.__len__()==0:
+        #         return sum(new_node.cost)
 
         for cell in new_node.unseen:
+            #Initialize a big number so that the heuristic is sure to be smaller than it
             min_dis = 1000000
 
+            #Go through each of the cells wachers and look for the one that closest to one of the agents
             for whach in self.world.dict_wachers[cell]:
 
                 if min_dis < max_pivot_dist:
@@ -334,64 +333,70 @@ class Mwrp:
                     if index in new_node.dead_agent:
                         continue
 
-                    real_dis = new_node.cost[index] + self.get_real_dis(agent, whach)
-
-                    if min_dis > real_dis:
-                        tmp_max_a = agent
-                        tmp_max_cell=whach
-
-                    min_dis = min(min_dis, real_dis)
-
-            # if max_pivot_dist <= min_dis:
-            #     max_cell=tmp_max_cell
-            #     max_a=tmp_max_a
-
-            max_pivot_dist = max(max_pivot_dist, min_dis)
-
-        max_pivot_dist = max(max_pivot_dist, max(new_node.cost))
-        return max_pivot_dist
-
-    def singelton_heuristic_soc(self, new_node):
-        max_pivot_dist = 0
-        if new_node.unseen.__len__()==0:
-            return sum(new_node.cost)
-
-        for cell in new_node.unseen:
-            min_dis = 1000000
-
-            for whach in self.world.dict_wachers[cell]:
-
-                if min_dis < max_pivot_dist:
-                    break
-
-                for index, agent in enumerate(new_node.location):
-                    if index in new_node.dead_agent:
-                        continue
-
-                    cost=new_node.cost[index]
-                    h=self.get_real_dis(agent, whach)
+                    cost = new_node.cost[index]
+                    h = self.get_real_dis(agent, whach)
 
                     real_dis = cost + h
-
                     if min_dis > real_dis:
                         tmp_max_h_dis = h
+                    #real_dis = new_node.cost[index] + self.get_real_dis(agent, whach)
 
                     min_dis = min(min_dis, real_dis)
 
             if max_pivot_dist <= min_dis:
                 max_h_dis = tmp_max_h_dis
 
-
             max_pivot_dist = max(max_pivot_dist, min_dis)
 
-            #print(max_a, max_cell, max_pivot_dist, max_h_dis)
-
-        #Utils.print_serch_status(self.world,new_node,self.start_time,self.expend_node,self.genrate_node,False,{max_cell : self.world.dict_wachers[max_cell]})
-
-       # print(new_node.location, new_node.cost, max_h_dis)
-        max_pivot_dist = max_h_dis + sum(new_node.cost)
-
+        if new_node.unseen.__len__() == 0:
+            max_h_dis=0
+        if self.minimize==0:
+            max_pivot_dist = max(max_pivot_dist, max(new_node.cost))
+        else:
+            max_pivot_dist = max_h_dis + sum(new_node.cost)
         return max_pivot_dist
+
+    # def singelton_heuristic_soc(self, new_node):
+    #     max_pivot_dist = 0
+    #     if new_node.unseen.__len__()==0:
+    #         return sum(new_node.cost)
+    #
+    #     for cell in new_node.unseen:
+    #         min_dis = 1000000
+    #
+    #         for whach in self.world.dict_wachers[cell]:
+    #
+    #             if min_dis < max_pivot_dist:
+    #                 break
+    #
+    #             for index, agent in enumerate(new_node.location):
+    #                 if index in new_node.dead_agent:
+    #                     continue
+    #
+    #                 cost=new_node.cost[index]
+    #                 h=self.get_real_dis(agent, whach)
+    #
+    #                 real_dis = cost + h
+    #
+    #                 if min_dis > real_dis:
+    #                     tmp_max_h_dis = h
+    #
+    #                 min_dis = min(min_dis, real_dis)
+    #
+    #         if max_pivot_dist <= min_dis:
+    #             max_h_dis = tmp_max_h_dis
+    #
+    #
+    #         max_pivot_dist = max(max_pivot_dist, min_dis)
+    #
+    #         #print(max_a, max_cell, max_pivot_dist, max_h_dis)
+    #
+    #     #Utils.print_serch_status(self.world,new_node,self.start_time,self.expend_node,self.genrate_node,False,{max_cell : self.world.dict_wachers[max_cell]})
+    #
+    #    # print(new_node.location, new_node.cost, max_h_dis)
+    #     max_pivot_dist = max_h_dis + sum(new_node.cost)
+    #
+    #     return max_pivot_dist
 
     def mtsp_makespan_heuristic_start(self, new_node, pivot):
 
@@ -577,49 +582,51 @@ class Mwrp:
 
 
     def get_heuristic(self, new_node):
-        if self.minimize == 0:
-            if self.index == 0: # singelton
-                closest_pivot_dist = self.singelton_heuristic_makespan(new_node)
 
-            elif self.index == 1: # max
-                mtsp = self.mtsp_heuristic(new_node)
-                singelton = self.singelton_heuristic_makespan(new_node)
-                closest_pivot_dist = max(singelton, mtsp)
+        if self.index == 0:  # singelton
+            closest_pivot_dist = self.singelton_heuristic(new_node)
 
-                #print(f'singelton {singelton} \t mtsp {mtsp}')
+        elif self.index == 1:  # max
+            mtsp = self.mtsp_heuristic(new_node)
+            singelton = self.singelton_heuristic(new_node)
+            closest_pivot_dist = max(singelton, mtsp)
 
-            elif self.index == 2: # mtsp
-                #t=time()
+        elif self.index == 2:  # mtsp
+            closest_pivot_dist = self.mtsp_heuristic(new_node)
+            if closest_pivot_dist == -1:
+                closest_pivot_dist = self.singelton_heuristic(new_node)
 
-                closest_pivot_dist = self.mtsp_heuristic(new_node)
-                #print(time()-t)
 
-                if closest_pivot_dist == -1:
-                    closest_pivot_dist = self.singelton_heuristic_makespan(new_node)
-
-            elif self.index == 3: # BFS
-                closest_pivot_dist = max(new_node.cost)
-
-        if self.minimize == 1:
-            if self.index == 0:  # singelton
-                closest_pivot_dist = self.singelton_heuristic_soc(new_node)
-
-            elif self.index == 1:  # max
-                mtsp = self.mtsp_makespan_heuristic(new_node)
-                singelton = self.singelton_heuristic_soc(new_node)
-                closest_pivot_dist = max(singelton, mtsp)
-
-                # print(f'singelton {singelton} \t mtsp {mtsp}')
-
-            elif self.index == 2:  # mtsp
-                #t=time()
-                closest_pivot_dist = self.mtsp_heuristic(new_node)
-                #print(time()-t)
-                if closest_pivot_dist == -1:
-                    closest_pivot_dist = self.singelton_heuristic_soc(new_node)
-
-            elif self.index == 3:  # BFS
-                closest_pivot_dist = max(new_node.cost)
+        # if self.minimize == 0:
+        #
+        #
+        #         #print(f'singelton {singelton} \t mtsp {mtsp}')
+        #
+        #
+        #
+        #     elif self.index == 3: # BFS
+        #         closest_pivot_dist = max(new_node.cost)
+        #
+        # if self.minimize == 1:
+        #     if self.index == 0:  # singelton
+        #         closest_pivot_dist = self.singelton_heuristic_soc(new_node)
+        #
+        #     elif self.index == 1:  # max
+        #         mtsp = self.mtsp_makespan_heuristic(new_node)
+        #         singelton = self.singelton_heuristic_soc(new_node)
+        #         closest_pivot_dist = max(singelton, mtsp)
+        #
+        #         # print(f'singelton {singelton} \t mtsp {mtsp}')
+        #
+        #     elif self.index == 2:  # mtsp
+        #         #t=time()
+        #         closest_pivot_dist = self.mtsp_heuristic(new_node)
+        #         #print(time()-t)
+        #         if closest_pivot_dist == -1:
+        #             closest_pivot_dist = self.singelton_heuristic_soc(new_node)
+        #
+        #     elif self.index == 3:  # BFS
+        #         closest_pivot_dist = max(new_node.cost)
 
         return closest_pivot_dist
 
@@ -675,153 +682,144 @@ class Mwrp:
         return dead_list
 
     def expend(self):
+        # Returns the best valued node currently in the open list
         old_state = self.pop_open_list()
-        self.expend_node += 1
-        self.H_expend += old_state.f
-        #print(old_state.f)
+
+        # Checks if there are no more cell left to see (len(unseen)==0)
         if self.goal_test(old_state.unseen):
             return old_state
 
+        self.expend_node += 1
+        self.H_expend += old_state.f
+
+        # Going through all the options to jump  for each one of the agents to produce all the valid situations
         for new_state in itertools.product(*self.get_all_frontire(old_state)):
+
+            #There is no need to generate a situation similar to the father
             if new_state != old_state.location:
 
+                #Rearranges agents and price (from largest to smallest) to maintain anonymity
                 sorted_new_state, sorted_indexing = Utils.sort_list(new_state)
 
+                #Gets the list that holds the dead agents
                 dead_list = self.get_dead_list(old_state, new_state, sorted_indexing)
 
+                #Calculates the unseen list for the new node
                 seen_state = old_state.unseen - self.world.get_all_seen(sorted_new_state)
 
                 new_node = Node(old_state, sorted_new_state, seen_state, dead_list,
                                 self.get_cost(new_state, old_state, sorted_indexing))
 
+               #Inserts the new node to the open list
                 self.insert_to_open_list(new_node)
 
         return False
 
+    # Checks whether there is a state similar to the new state and whether there is one better than the other
     def need_to_fix_parent(self, new_node,state):
-        #cost_sort_new=(new_node.cost)
         all_index=set()
-        t=time()
 
+        #Runs on all existing similar posters
         for index, old_node in enumerate(self.visit_list_dic[state]):
-            #cost_sort_old = (old_node.cost)
             cost_win=0
 
             if self.minimize==0:
+                # Checks the cost of each cell individually and only if the cost of each cell in the same trend
+                # (all high or all low) then it determines who is better in terms of cost
                 for index, new_cell in enumerate(new_node.cost_map.keys()):
                     if cost_win==-5:
                         break
+                    #A loop that passes through all the agents stnding in a particular cell (can be more than 1 such)
                     for i in range(new_node.cost_map[new_cell].__len__()):
                         if new_node.cost_map[new_cell][i]>=old_node.cost_map[new_cell][i] and cost_win >=0:
+                            #new_node is beter
                             cost_win=1
                         elif new_node.cost_map[new_cell][i]<=old_node.cost_map[new_cell][i] and cost_win <=0:
+                            #old_node is beter
                             cost_win=-1
                         else:
                             cost_win=-5
 
-
-                # new_node_cost = max(new_node.cost)
-                # max_old_node_cost = max(old_node.cost)
+            elif self.minimize == 1:
+                #In soc the comparison can be made by the sum of the cost
+                if sum(new_node.cost) >=  sum(old_node.cost):
+                    cost_win = 1
+                elif sum(new_node.cost) <= sum(old_node.cost):
+                    cost_win = -1
 
 
             if cost_win==1  and old_node.unseen.issubset(new_node.unseen):
                 self.open_is_beter+=1
-                self.find_time += time() - t
 
                 return False
 
             elif cost_win==-1 and new_node.unseen.issubset(old_node.unseen):
-                #if old_node not in self.open_list:
                 self.new_is_beter+=1
                 old_node.cost = [-max(old_node.cost)] * self.number_of_agent
                 all_index.add(index)
-                #return True
 
         if all_index.__len__()>0:
             self.visit_list_dic[state]=[data for i , data in enumerate(self.visit_list_dic[state])
                                                     if i not in all_index]
-            #del self.visit_list_dic[new_node.location][tuple(all_index)]
-        self.find_time += time()-t
 
         return True
 
     def run(self, writer, map_config, start_pos,obs_remove):
-        htype = {0: 'singlton', 1: 'max', 2: 'mtsp',3:'BFS'}
+
+        # Writes to the file the type of heuristic that is activated
+        h_type = {0: 'singlton', 1: 'max', 2: 'mtsp',3:'BFS'}
         self.start_time = time()
-        # print("\nstart algoritem ... ", end='')
 
         goal_node = False
+
         while not goal_node:
+            #expend new node if goal_node is not folse the algoritem find solution
             goal_node = self.expend()
 
+            #Checks if we have exceeded the time limit
             if time() - self.start_time > 300:
-                writer.writerow([map_config, start_pos, -1, htype[self.index], self.H_start,
+                # Writes to the file all the parameters of the experiment when the cost is 0 and the time is -1
+                writer.writerow([map_config, start_pos, -1, h_type[self.index], self.H_start,
                                  self.H_genrate / self.genrate_node,
                                  self.H_expend / self.expend_node, self.max_pivot, 0, self.genrate_node,
-                                 self.expend_node, self.open_is_beter, self.new_is_beter,obs_remove*5, [0]*self.number_of_agent])
+                                 self.expend_node, self.open_is_beter, self.new_is_beter,obs_remove, [0]*self.number_of_agent])
                 return
+
         #self.get_path(goal_node)
-        #print(self.insert_time , self.find_time)
-        #Utils.print_serch_status(world,goal_node,0,0,0,False)
 
         if self.genrate_node > 0:
             h_gen = self.H_genrate / self.genrate_node
         else:
             h_gen = self.H_genrate
 
-        writer.writerow([map_config, start_pos, time() - self.start_time, htype[self.index], self.H_start,
+        # Writes to the file all the parameters of the experiment
+        writer.writerow([map_config, start_pos, time() - self.start_time, h_type[self.index], self.H_start,
                          h_gen,
                          self.H_expend / self.expend_node, self.max_pivot, 0, self.genrate_node, self.expend_node,
-                         self.open_is_beter,self.new_is_beter,obs_remove*5, goal_node.cost])
+                         self.open_is_beter,self.new_is_beter,obs_remove, goal_node.cost])
 
-        # print(f"find solution in -> {time() - self.start_time} sec at cost of {goal_node.cost}"
-        #       f" and open {self.number_of_node} node")
-
+    # get all node on the optimal path . Still need to find the waypoints because of the jumps
     def get_path(self, gole_node):
         all_path = [gole_node]
         node = gole_node
+
+        #parent.parent to prevent crashes when reaching the root of the tree
         while node.parent.parent is not None:
-            print(node.location ,'\t', node.cost,'\t', node.f,'\t',self.genrate_node)
+            print(node.location ,'\t', node.cost,'\t', node.f,'\t',self.expend_node)
             node = node.parent
             all_path.append(node)
+        # Returns the inverted trajectory so that the starting point is the list head
         return all_path[::-1]
-
-    def print_path(self, gole_node, see_agent_walk):
-        all_path = self.get_path(gole_node)
-        tmp_location = []
-        for cell in all_path:
-
-            # print(f'L = {cell.location} \t h = {cell.heuristics} ')
-            tmp_location.append(cell.location)
-            tmp_word = np.copy(self.world.grid_map)
-            for k in cell.unseen:
-                tmp_word[k] = 2
-            for j in cell.location:
-                tmp_word[j] = 3
-            if see_agent_walk:
-                plt.figure(1)
-                plt.pcolormesh(tmp_word, edgecolors='black', linewidth=0.01)
-                plt.gca().set_aspect('equal')
-                plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
-                plt.draw()
-                plt.pause(0.001)
-                plt.clf()
-                sleep(0.5)
-        plt.close('all')
-        Utils.print_all_whacers(self.world, tmp_location)
 
 
 import csv
 from alive_progress import alive_bar
 import sys
-
 if __name__ == '__main__':
-    map_type = 'maze_11_11'
-    experement_name=f'{map_type}_reopen'
+    map_type = 'maze_13_13'
+    name= 'remove_obs'
+    experement_name=f'{map_type}_{name}'
     map_config = f'./config/{map_type}_config.csv'
-
-    #map_config='./config/for_jornal.csv'
-    #row_map = np.genfromtxt(map_config, delimiter=',', case_sensitive=True)
 
     row_map=Utils.convert_map(map_config)
 
@@ -829,29 +827,27 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 100
+    exp_number = 50
   #  huristics_exp=[2]
-  #  loop_number_of_agent=[2]
+    loop_number_of_agent=[2]
     minimize = { 'makespan' : 0, 'soc' : 1}
 
-    # loop_number_of_agent = [2]
-    # huristics_exp = [0,1,2]
 
     if sys.argv:
         huristics_exp = [int(sys.argv[1])]
         loop_number_of_agent = [int(sys.argv[2])]
+    #
+    # else:
+    #     #huristics_exp = [0, 1, 2]
+    #     loop_number_of_agent = [2, 4, 6]
 
-    else:
-        #huristics_exp = [0, 1, 2]
-        loop_number_of_agent = [2, 4, 6]
-
-    # for ii in range(100):
-    #     start_pos = tuple(tuple(all_free[randint(0,all_free.__len__()-1)]) for f in range(loop_number_of_agent[0]))
-    #     print(start_pos)
 
     start_in=0
     exp_index=0
     data_file = open(f'{experement_name}_{loop_number_of_agent[0]}_agent_{huristics_exp[0]}_huristic.csv', 'w', newline='\n')
+    # for ii in range(100):
+    #     start_pos = tuple(tuple(all_free[randint(0,all_free.__len__()-1)]) for f in range(loop_number_of_agent[0]))
+    #     print(start_pos)
 
     #data_file = open(f'{loop_number_of_agent}_agent_{datetime.now()}.csv', 'w', newline='\n')
 
@@ -868,32 +864,37 @@ if __name__ == '__main__':
     # for i in all_start_config_as_tupel:
     #     print(i)
     # all_start_config_as_tupel=[((1,1),())]
-
-    #remove_obs_number=71//5+1
     remove_obs_number=1
+
+    # maps = pickle.load(open("all_maps_for_remove.p", "rb"))[:-1]
+    # remove_obs_number=maps.__len__()
 
     with alive_bar(loop_number_of_agent.__len__() * exp_number * len(huristics_exp) * len(pivot) * remove_obs_number) as bar:
         for max_pivot in pivot:
             for number_of_agent in loop_number_of_agent:
                 row_map = Utils.convert_map(map_config)
-                for remove_obs in range(remove_obs_number):
-                    start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',dtype=tuple,delimiter='\n')
-                    all_start_config_as_tupel= [ast.literal_eval(i) for i in start_config_as_string]
-                    all_start_config_as_tupel=all_start_config_as_tupel[:exp_number]
-                  # all_start_config_as_tupel=list(map(tuple,all_free))
-                   # all_start_config_as_tupel=[((9, 1), (10, 1))]
+                start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
+                                                    dtype=tuple, delimiter='\n')
+                all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
+                all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
 
+                for remove_obs in range(remove_obs_number):
+                    start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
+                                                        dtype=tuple, delimiter='\n')
+                    all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
+                    all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
+
+                    #all_start_config_as_tupel=list(map(tuple,all_free))
                     for start_pos in all_start_config_as_tupel:
                         #start_pos=tuple([start_pos]*number_of_agent)
                         for huristic in huristics_exp:
                             if exp_index >= start_in:
-                                world = WorldMap(np.array(row_map), LOS)
 
+                                world = WorldMap(np.array(row_map), LOS)
                                 mwrp = Mwrp(world, start_pos, huristic, max_pivot,map_type,minimize['makespan'])
                                 mwrp.run(writer, map_config, start_pos,remove_obs)
-                            exp_index += 1
                             bar()
-                    #row_map = world.remove_obstical(5)
+
 
 # TODO:
 # fix pop(0) to pop() -> V
