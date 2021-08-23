@@ -15,12 +15,12 @@ class Mwrp:
 
     def __init__(self, world: WorldMap, start_pos: tuple, huristic_index: int, max_pivot: int, map_name: str, minimize: int) -> None:
         """
-        @param world:           An WorldMap  object from script.world that contains the parameters of the world
-        @param start_pos:       The starting position of the agents as tupel . For example for two agents : ((1,1),(4,6))
-        @param huristic_index:  heuristic activated in this session ( {0: 'singlton', 1: 'max', 2: 'mtsp',3 : 'laze max',4:'BFS'})
-        @param max_pivot:       The maximum number of pivots for calculating heuristics . From experience 5 and 6 were the best
-        @param map_name:        The name of the map. For example : maze_11_11
-        @param minimize:        What we want to minimize (soc, mksp)
+        :param world:           An WorldMap  object from script.world that contains the parameters of the world
+        :param start_pos:       The starting position of the agents as tupel . For example for two agents : ((1,1),(4,6))
+        :param huristic_index:  heuristic activated in this session ( {0: 'singlton', 1: 'max', 2: 'mtsp',3 : 'laze max',4:'BFS'})
+        :param max_pivot:       The maximum number of pivots for calculating heuristics . From experience 5 and 6 were the best
+        :param map_name:        The name of the map. For example : maze_11_11
+        :param minimize:        What we want to minimize (soc, mksp)
         """
         self.huristic_index = huristic_index
         self.minimize = minimize
