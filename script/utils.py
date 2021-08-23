@@ -573,7 +573,8 @@ class lp_mtsp():
         #     self.mdl.set_var_ub(self.u_start_and_agent[u], cost[u - 1])
 
         # max_subtoor
-        self.mdl.add_constraint(self.k[0] == self.mdl.sum(self.x[c]*distance_dict[c] for c in all_directed_edges))
+        #self.mdl.add_constraint(self.k[0] == self.mdl.sum(self.x[c]*distance_dict[c] for c in all_directed_edges))
+        self.mdl.minimize(self.mdl.sum(self.x[c]*distance_dict[c] for c in all_directed_edges))
 
         # 'out'
         self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in all_directed_edges if i == c) == 1 for c in
@@ -610,7 +611,7 @@ class lp_mtsp():
 
         max_u = solucion.get_objective_value()
 
-        return max([round(max_u)] + cost)
+        return max_u
 
     def print_SD_MTSP_on_map(self, for_plot, all_cell_location, best_x, w, p):
 
