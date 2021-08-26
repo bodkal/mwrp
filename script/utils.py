@@ -308,47 +308,41 @@ class Node:
             cost_map[cell] = sorted(cost_map[cell])
         return cost_map
 
-    def __cmp__(self,oder):
+    def __cmp__(self,oder,minimize):
 
-        id()
+        if self.f == oder.f:
+        # first tiebreaker smallest unseen is wining
+            if self.unseen.__len__() == oder.unseen.__len__():
+                if minimize == 0:
+                    # cost for mksp
+                    cost_oder = max(np.abs(oder.cost))
+                    cost_self = max(np.abs(self.cost))
 
+                else:
+                    # cost for soc
+                    cost_oder = sum(np.abs(oder.cost))
+                    cost_self = sum(np.abs(self.cost))
 
-class Node:
+                # second tiebreaker bisest cost is wining
+                if cost_self == cost_oder:
+                    # Third tiebreaker according to location in memory so as not to be random
+                    if id(self) < id(oder):
+                        return False
+                    else:
+                        return True
+                elif cost_self < cost_oder:
+                    return False
+                else:
+                    return True
 
-    def __init__(self, parent, location, unseen, dead_agent, cost, f=0):
-        self.parent = parent
-        self.location = location
-        self.unseen = unseen
-        self.cost = cost
-        # if heuristics==0:
-        #     self.heuristics = [0]*self.location.__len__()
-        # else:
-        #    self.heuristics = heuristics
-
-        self.f = f
-
-        self.dead_agent = dead_agent
-        self.first_genarate = False
-        self.cost_map=self.__costmap__()
-
-    def __sort__(self):
-        return tuple(sorted((self.location)))
-
-    def __costmap__(self):
-        cost_map=dict()
-        for index , cell in enumerate(self.location):
-            if cell not in cost_map:
-                cost_map[cell]=[self.cost[index]]
+            elif self.unseen.__len__() > oder.unseen.__len__():
+                return False
             else:
-                cost_map[cell].append(self.cost[index])
-
-        for cell in cost_map.keys():
-            cost_map[cell] = sorted(cost_map[cell])
-        return cost_map
-
-    def __cmp__(self,oder):
-
-        id()
+                return True
+        elif self.f > oder.f:
+            return False
+        else:
+            return True
 
 class Bresenhams:
     def __init__(self, grid_map):
@@ -556,6 +550,7 @@ class lp_mtsp():
         #self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
 
         max_u = solucion.get_objective_value()
+        #self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
 
         return max([round(max_u)] + cost)
 
@@ -610,13 +605,14 @@ class lp_mtsp():
         #self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
 
         max_u = solucion.get_objective_value()
+        #self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
 
         return max_u
 
     def print_SD_MTSP_on_map(self, for_plot, all_cell_location, best_x, w, p):
 
         import matplotlib.pyplot as plt
-        plt.figure('0')
+        plt.figure()
         arcos_activos = [e for e in all_cell_location if best_x[e].solution_value > 0.9]
         for i, j in arcos_activos:
             if type(i) == int and type(j) == int:
@@ -632,8 +628,9 @@ class lp_mtsp():
                 plt.plot([i[1] + 0.5, j[1] + 0.5], [i[0] + 0.5, j[0] + 0.5], color='r', alpha=0.6, linewidth=2,
                          marker='o')
 
-        for i, j in for_plot:
-            plt.annotate(f'{i, j}', xy=(j + 1, i + 0.5), color='k', weight='bold')
-        Utils.print_pivot(w, p)
-        plt.show()
+        # for i, j in for_plot:
+        #     plt.annotate(f'{i, j}', xy=(j + 1, i + 0.5), color='k', weight='bold')
+
+        #Utils.print_pivot(w, p)
+        #plt.show()
 
