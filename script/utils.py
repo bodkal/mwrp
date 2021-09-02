@@ -4,6 +4,7 @@ from time import time
 import matplotlib.pyplot as plt
 from matplotlib import colors as c
 import csv
+import heapq
 
 colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
 
@@ -275,23 +276,37 @@ class Utils:
         plt.close('all')
         Utils.print_all_whacers(world, tmp_location)
 
+
+        @staticmethod
+        def replace_in_heap(heap, index_in_heap, item):
+            # Replace in_closed with new_node in open
+            parent_index = (index_in_heap - 1) >> 1
+            while index_in_heap != 0:
+                heap[parent_index], heap[index_in_heap] = (
+                    heap[index_in_heap],
+                    heap[parent_index],
+                )
+                index_in_heap = parent_index
+                parent_index = (index_in_heap - 1) >> 1
+            # in_closed is now at 0
+            heapq.heapreplace(heap, item)
+
 class Node:
 
-    def __init__(self, parent, location, unseen, dead_agent, cost, f=0):
+    def __init__(self, parent, location, unseen, dead_agent, cost,minimize, f=0):
         self.parent = parent
         self.location = location
         self.unseen = unseen
         self.cost = cost
-        # if heuristics==0:
-        #     self.heuristics = [0]*self.location.__len__()
-        # else:
-        #    self.heuristics = heuristics
-
         self.f = f
-
         self.dead_agent = dead_agent
         self.first_genarate = False
         self.cost_map=self.__costmap__()
+
+        if minimize == 0:
+            self.get_cost = lambda node: max(np.abs(node.cost))
+        else:
+            self.get_cost = lambda node: sum(np.abs(node.cost))
 
     def __sort__(self):
         return tuple(sorted((self.location)))
@@ -343,6 +358,36 @@ class Node:
             return False
         else:
             return True
+
+
+    def __lt__(self,oder):
+
+        if self.f == oder.f:
+        # first tiebreaker smallest unseen is wining
+            if self.unseen.__len__() == oder.unseen.__len__():
+                cost_oder=self.get_cost(oder)
+                cost_self=self.get_cost(self)
+                # second tiebreaker bisest cost is wining
+                if cost_self == cost_oder:
+                    # Third tiebreaker according to location in memory so as not to be random
+                    if id(self) < id(oder):
+                        return False
+                    else:
+                        return True
+                elif cost_self < cost_oder:
+                    return False
+                else:
+                    return True
+
+            elif self.unseen.__len__() > oder.unseen.__len__():
+                return False
+            else:
+                return True
+        elif self.f > oder.f:
+            return False
+        else:
+            return True
+
 
 class Bresenhams:
     def __init__(self, grid_map):
@@ -550,7 +595,7 @@ class lp_mtsp():
         #self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
 
         max_u = solucion.get_objective_value()
-        #self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
+       # self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
 
         return max([round(max_u)] + cost)
 
@@ -610,7 +655,7 @@ class lp_mtsp():
         return max_u
 
     def print_SD_MTSP_on_map(self, for_plot, all_cell_location, best_x, w, p):
-
+        for_plot=[(0, 0)]+for_plot
         import matplotlib.pyplot as plt
         plt.figure()
         arcos_activos = [e for e in all_cell_location if best_x[e].solution_value > 0.9]

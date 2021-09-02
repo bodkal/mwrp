@@ -44,24 +44,6 @@ class Mwrp:
         self.open_is_beter = 0
         self.new_is_beter = 0
 
-        # set which contains all the free cell on the map
-        unseen_all = set(map(tuple, np.transpose(np.where(self.world.grid_map == 0))))
-
-        # Filters all the cells that can be seen from the starting position
-        unseen_start = unseen_all - self.world.get_all_seen(start_pos)
-
-        # Produces the initial NODE
-        start_node = Node(Node(None, start_pos, [0] * self.number_of_agent, 0, [0] * start_pos.__len__()), start_pos,
-                          unseen_start, [], [0] * start_pos.__len__())
-
-        # open sort from top to bottom (best down)
-        self.open_list = [start_node]
-
-        heapq.heapify(self.open_list)
-
-        # open and close list
-        self.visit_list_dic = {tuple(sorted(start_pos)): [start_node]}
-
         # Checks whether we have previously calculated the distance between all the cell on the map and the centrality
         try:
             self.real_dis_dic = pickle.load(open(f"config/real_dis_dic_{map_name}.p", "rb"))
@@ -73,6 +55,31 @@ class Mwrp:
             pickle.dump(self.real_dis_dic, open(f"config/real_dis_dic_{map_name}.p", "wb"))
             pickle.dump(self.centrality_dict, open(f"config/centrality_dict_{map_name}.p", "wb"))
             print('end FloydWarshall')
+
+
+        # set which contains all the free cell on the map
+        unseen_all = set(map(tuple, np.transpose(np.where(self.world.grid_map == 0))))
+
+        self.centrality_dict = self.centrality_list_wachers(unseen_all)
+
+        pivot = self.get_pivot(unseen_all)
+        start_pos=tuple(list(pivot.keys())[:self.number_of_agent])
+
+        # Filters all the cells that can be seen from the starting position
+        unseen_start = unseen_all - self.world.get_all_seen(start_pos)
+
+        # Produces the initial NODE
+        start_node = Node(Node(None, start_pos, [0] * self.number_of_agent, 0, [0] * start_pos.__len__(),self.minimize), start_pos,
+                          unseen_start, [], [0] * start_pos.__len__(),self.minimize)
+
+        # open sort from top to bottom (best down)
+        self.open_list = [start_node]
+
+        #heapq.heapify(self.open_list)
+
+        # open and close list
+        self.visit_list_dic = {tuple(sorted(start_pos)): [start_node]}
+
 
 
         # Arranges the centrality_dict according to a given function and filters what you see from the starting point
@@ -617,7 +624,7 @@ class Mwrp:
                 seen_state = old_state.unseen - self.world.get_all_seen(sorted_new_state)
 
                 new_node = Node(old_state, sorted_new_state, seen_state, dead_list,
-                                self.get_cost(new_state, old_state, sorted_indexing))
+                                self.get_cost(new_state, old_state, sorted_indexing),self.minimize)
 
                 if self.huristic_index == 3:
                     self.insert_to_open_list_lazy_max(new_node)
@@ -741,9 +748,8 @@ class Mwrp:
 
 
 if __name__ == '__main__':
-    #map_type='small_for_exp'
-    map_type = 'maze_11_11'
-    name = 'heapq'
+    map_type = 'small_for_movs'
+    name = 'pivot_start'
     experement_name = f'{map_type}_{name}'
     map_config = f'./config/{map_type}_config.csv'
 
@@ -753,9 +759,11 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 15
+    exp_number = 5
+
+
     #  huristics_exp=[2]
-    loop_number_of_agent = [2,3,4,5]
+    loop_number_of_agent = [2]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
@@ -763,10 +771,6 @@ if __name__ == '__main__':
     #    # huristics_exp = [int(sys.argv[1])]
     #     loop_number_of_agent = [int(sys.argv[1])]
 
-
-    # else:
-    # huristics_exp = [0, 1, 2]
-    # loop_number_of_agent = [2, 4, 6]
 
     start_in = 0
     exp_index = 0
@@ -782,41 +786,44 @@ if __name__ == '__main__':
         ['map_name', 'start_state', 'time', 'h type', 'h_start', 'h_genarate', 'h_expend', 'number of max pivot',
          'use black list', 'genarate', 'expend', 'open is beter', 'new is beter', 'obs remove', 'cost'])
 
-    # start_config_as_string = np.loadtxt(f'./config/{map_type}_{12}_agent_domain.csv', dtype=tuple,delimiter='\n')
+    # start_config_as_string = np.loadtxt(f'./config/{map_type}_{15}_agent_domain.csv', dtype=tuple,delimiter='\n')
     # all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
-    #
-    # all_start_config_as_tupel = [tuple((i[0],i[1],i[2],i[3],i[4],i[5],i[6],i[7],i[8],i[9],i[10],i[11],tuple(all_free[randint(0,all_free.__len__()-1)]))) for i in all_start_config_as_tupel]
+
+    # all_start_config_as_tupel = [tuple((i[0],i[1],i[2],i[3],i[4],i[5],i[6],i[7],i[8],i[9],i[10],i[11],i[12],i[13],i[14],tuple(all_free[randint(0,all_free.__len__()-1)]))) for i in all_start_config_as_tupel]
     # for i in all_start_config_as_tupel:
     #     print(i)
     # # all_start_config_as_tupel=[((1,1),())]
-    remove_obs_number = 1
+    # remove_obs_number = 1
 
     # maps = pickle.load(open("all_maps_for_remove.p", "rb"))[:-1]
     # remove_obs_number=maps.__len__()
+    
     row_map = Utils.convert_map(map_config)
-
+    remove_obs_number=1
     with alive_bar(
             loop_number_of_agent.__len__() * exp_number * len(huristics_exp) * len(pivot) * remove_obs_number) as bar:
         for max_pivot in pivot:
             for number_of_agent in loop_number_of_agent:
-                start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
-                                                    dtype=tuple, delimiter='\n')
-                all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
-                all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
+                # start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
+                #                                     dtype=tuple, delimiter='\n')
+                # all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
+                # all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
                 #all_start_config_as_tupel=[((1,1),(19,19))]
                 for remove_obs in range(remove_obs_number):
-                    start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
-                                                        dtype=tuple, delimiter='\n')
-                    all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
-                    all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
+                    # start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
+                    #                                     dtype=tuple, delimiter='\n')
+                    # all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
+                    # all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
 
                     #all_start_config_as_tupel=list(map(tuple,all_free))
+                    all_start_config_as_tupel=[[0]*number_of_agent]
                     for start_pos in all_start_config_as_tupel:
                        # start_pos=tuple([start_pos]*number_of_agent)
 
                         for huristic in huristics_exp:
                             if exp_index >= start_in:
                                 world = WorldMap(np.array(row_map), LOS)
-                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['mksp'])
+                                Utils.print_map(world)
+                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['soc'])
                                 mwrp.run(writer, map_config, start_pos, remove_obs)
                             bar()

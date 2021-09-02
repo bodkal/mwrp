@@ -191,6 +191,7 @@ class Node:
         self.cost = cost
         self.heuristics = heuristics
         self.dead_agent=dead_agent
+        self.first_genarate = False
 
     def __sort__(self):
         return tuple(sorted((self.location)))

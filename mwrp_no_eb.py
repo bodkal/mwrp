@@ -79,7 +79,7 @@ class Mwrp:
 
         self.min_unseen=unseen_start.__len__()
 
-        self.H_start=self.get_heuristic(start_node)
+        self.H_start=0#self.get_heuristic(start_node)
         self.open_is_beter=0
         self.new_is_beter=0
         #Utils.print_all_whacers(self.world, [list(self.pivot.keys())-+list(start_pos)])
@@ -161,10 +161,6 @@ class Mwrp:
             if pivot.__len__() == self.max_pivot:
                 return pivot
         return pivot
-
-
-
-
 
     def get_new_node(self, new_state, seen_state, new_cost, old_state):
         heuristic = self.get_heuristic(new_state, seen_state)
@@ -314,6 +310,7 @@ class Mwrp:
                 return -1
         if pivot.__len__()==0:
                 return 0
+
         citys = range(self.number_of_agent + pivot.__len__() + 1)
         all_pos = list(new_node.location) + list(pivot.keys())
         distance_agent_pivot = {}
@@ -360,32 +357,44 @@ class Mwrp:
     def mtsp_sum_of_cost_heuristic(self, new_node):
         x=1
 
-    # def multy_singelton(self,new_node):
-    #     max_pivot_dist = 0
-    #     # Utils.print_whacers(self.world,new_node.unseen)
-    #     tmp_unseen=new_node.unseen
-    #     tmp_agent=new_node.location
-    #     poslist=[]
-    #     for cell in tmp_unseen:
-    #         min_dis = 1000000
-    #         best_agent =0
-    #         best_agentpivot=0
-    #
-    #         for whach in self.world.dict_wachers[cell]:
-    #             if min_dis < max_pivot_dist:
-    #                 break
-    #             for agent in tmp_agent:
-    #                 real_dis = self.get_real_dis(agent, whach)
-    #
-    #                 if min_dis > real_dis:
-    #                     best_agent = agent
-    #                     best_agentpivot = whach
-    #
-    #                 min_dis = min(min_dis, real_dis)
-    #
-    #         # print(f'min_dis = {min_dis} \t max_pivot_dist = {max_pivot_dist} ')
-    #
-    #         max_pivot_dist = max(self.get_real_dis(agent, whach), min_dis)
+    def insert_to_open_list_lazy_max(self, new_node: Node) -> None:
+        """
+        insert new node to the open list for lazy_max huristics
+        :param new_node: node that need to insert to open lest
+        """
+        state=tuple(sorted(new_node.location))
+        if new_node.first_genarate or not self.in_open_or_close(new_node):
+            if not new_node.first_genarate:
+                new_node.heuristics = self.singelton_heuristic(new_node)
+                self.visit_list_dic[state] = [new_node]
+            index = self.find_index_to_open(new_node)
+            self.open_list.insert(index, new_node)
+
+
+        elif self.need_to_fix_parent(new_node):
+            if not new_node.first_genarate:
+                new_node.heuristics = self.singelton_heuristic(new_node)
+                self.visit_list_dic[state].append(new_node)
+            index = self.find_index_to_open(new_node)
+            self.open_list.insert(index, new_node)
+
+    def insert_to_open_list(self, new_node):
+
+        if not self.in_open_or_close(new_node):
+            self.genrate_node+=1
+            new_node.heuristics = self.get_heuristic(new_node)
+            self.H_genrate+=new_node.heuristics
+            index = self.find_index_to_open(new_node)
+            self.open_list.insert(index, new_node)
+            self.visit_list_dic[tuple(sorted(new_node.location))] = [new_node]
+
+        elif self.need_to_fix_parent(new_node):
+            self.genrate_node+=1
+            new_node.heuristics = self.get_heuristic(new_node)
+            self.H_genrate+=new_node.heuristics
+            index = self.find_index_to_open(new_node)
+            self.open_list.insert(index, new_node)
+            self.visit_list_dic[tuple(sorted(new_node.location))].append(new_node)
 
 
     def get_heuristic(self, new_node):
@@ -399,6 +408,7 @@ class Mwrp:
             closest_pivot_dist = self.mtsp_makespan_heuristic(new_node)
             if closest_pivot_dist==-1:
                 closest_pivot_dist=self.singelton_heuristic(new_node)
+
         elif self.huristic_index == 3:
             closest_pivot_dist = self.mtsp_makespan_heuristic(new_node)
         elif self.huristic_index == 4:
@@ -427,9 +437,20 @@ class Mwrp:
 
     def expend(self):
         old_state = self.pop_open_list()
-        self.expend_node+=1
-        self.H_expend+=old_state.heuristics
-        #print(self.number_of_node,'\t',old_state.heuristics)
+
+
+
+        if self.huristic_index == 3:
+            if old_state.first_genarate == False:
+                mtsp = self.mtsp_makespan_heuristic(old_state)
+                old_state.first_genarate = True
+                if mtsp + old_state.cost >= old_state.cost +old_state.heuristics:
+                    old_state.heuristics = mtsp
+                    self.insert_to_open_list_lazy_max(old_state)
+                    return False
+        self.expend_node += 1
+        self.H_expend += old_state.heuristics
+        # print(self.number_of_node,'\t',old_state.heuristics)
 
         if self.goal_test(old_state.unseen):
             return old_state
@@ -447,8 +468,14 @@ class Mwrp:
                         dead_list.append(i)
                 new_node = Node(old_state, new_state, seen_state,dead_list, self.get_cost(old_state), 0)
 
-                self.insert_to_open_list(new_node)
+                if self.huristic_index == 3:
+                    self.insert_to_open_list_lazy_max(new_node)
+
+                else:
+                    # Inserts the new node to the open list
+                    self.insert_to_open_list(new_node)
                 #print(time()-t)
+
         return False
 
     def need_to_fix_parent(self, new_node):
@@ -537,11 +564,11 @@ class Mwrp:
 
 import csv
 from alive_progress import alive_bar
-
+import sys
 if __name__ == '__main__':
     #map_type='small_for_exp'
     map_type = 'maze_11_11'
-    name = 'soc_all'
+    name = 'lazy_A'
     experement_name = f'{map_type}_{name}'
     map_config = f'./config/{map_type}_config.csv'
 
@@ -551,24 +578,30 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 72
+    exp_number = 100
     #  huristics_exp=[2]
     loop_number_of_agent = [2]
     minimize = {'mksp': 0, 'soc': 1}
-    huristics_exp = [0, 1,2]
+    huristics_exp = [3]
 
-    # if sys.argv:
-    #     huristics_exp = [int(sys.argv[1])]
-    #     loop_number_of_agent = [int(sys.argv[2])]
-
+    #  huristics_exp=[2]
+   # loop_number_of_agent = [2]
+    minimize = {'mksp': 0, 'soc': 1}
+    huristics_exp = [3]
+    if sys.argv:
+        # huristics_exp = [int(sys.argv[1])]
+        loop_number_of_agent = [int(sys.argv[1])]
+        start_in = int(sys.argv[2])
+        exp_number = int(sys.argv[3])
 
     # else:
     # huristics_exp = [0, 1, 2]
     # loop_number_of_agent = [2, 4, 6]
 
-    start_in = 0
+    # start_in = 0
     exp_index = 0
-    data_file = open(f'{experement_name}_{loop_number_of_agent[0]}_agent_{huristics_exp[0]}_huristic.csv', 'w',newline='\n')
+    data_file = open(
+        f'{experement_name}_{loop_number_of_agent[0]}_agent_{huristics_exp[0]}_huristic_{start_in}_{exp_number}.csv','w', newline='\n')
     # for ii in range(100):
     #     start_pos = tuple(tuple(all_free[randint(0,all_free.__len__()-1)]) for f in range(loop_number_of_agent[0]))
     #     print(start_pos)
@@ -602,20 +635,20 @@ if __name__ == '__main__':
                 #                                     dtype=tuple, delimiter='\n')
                 # all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
                 # all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
-                #all_start_config_as_tupel=[((3,3),(3,5))]
                 for remove_obs in range(remove_obs_number):
                     start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
                                                         dtype=tuple, delimiter='\n')
                     all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
                     all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
-
-                    all_start_config_as_tupel=list(map(tuple,all_free))
+                   # all_start_config_as_tupel=[((1, 10), (1, 1))]
+                   # all_start_config_as_tupel=list(map(tuple,all_free))
                     for start_pos in all_start_config_as_tupel:
-                        start_pos=tuple([start_pos]*number_of_agent)
+                        #start_pos=tuple([start_pos]*number_of_agent)
 
                         for huristic in huristics_exp:
                             if exp_index >= start_in:
                                 world = WorldMap(np.array(row_map), LOS)
-                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['soc'])
+                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['mksp'])
                                 mwrp.run(writer, map_config, start_pos, remove_obs)
+                            exp_index+=1
                             bar()
