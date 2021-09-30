@@ -3,189 +3,150 @@ from random import randint
 from time import time
 import matplotlib.pyplot as plt
 from matplotlib import colors as c
-import csv
 import heapq
 
-colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
 
 
-# white    black       blue            red     yellow      green           grey
-
+#
 class Utils:
+    '''
+    Holds all static functions that do not belong to any specific class
+    '''
 
     @staticmethod
-    def n_dim_distance(point_a, point_b):
-        new_vec = point_a - point_b
-        return np.sqrt(np.dot(new_vec, new_vec))
-
-    @staticmethod
-    def distance_all(point_a, points):
-        new_vec = points - point_a
-        return np.sqrt(np.einsum('ij,ij->i', new_vec, new_vec))
-        # return cdist([point_a], points)
-
-    @staticmethod
-    def get_random_map(row, col, start):
+    def get_random_map(row: int, col: int) -> np.array:
+        """
+        Produces a map of desired size with obstacles in a random location
+        :param row: map row size
+        :param col: ap row size
+        :return: new map white random obstacle
+        """
         random_map = np.zeros((row, col))
-        random_map[row - 1, :] = 1
-        random_map[0, :] = 1
-        random_map[:, col - 1] = 1
-        random_map[:, 0] = 1
-        for i in range(int(row * col / 10)):
-            random_map[randint(1, row - 1), randint(1, col - 1)] = 1
+        random_map[:]='.'
+        random_map[row - 1, :] = '@'
+        random_map[0, :] = '@'
+        random_map[:, col - 1] = '@'
+        random_map[:, 0] = '@'
 
-        for i in start:
-            random_map[i] = 0
+        for i in range(int(row * col / 10)):
+            random_map[randint(1, row - 1), randint(1, col - 1)] = '@'
+
         return random_map
 
-    @staticmethod
-    def centrality_list(dist_dict, grid_map):
-        centrality_list = []
-        for index, cell in enumerate(dist_dict):
-            tmp_cell_all_dist = sum(cell)
-            if tmp_cell_all_dist:
-                centrality_list.append(tuple((tmp_cell_all_dist, tuple((divmod(index, grid_map.shape[1]))))))
-        centrality_list = sorted(centrality_list, reverse=True)
-        return centrality_list
+
+    # @staticmethod
+    # def centrality_dict(dist_dict, dist_map):
+    #     centrality_dict = dict()
+    #     for index, cell in enumerate(dist_dict):
+    #         # tmp_cell_all_dist = sum(cell)
+    #         if cell:
+    #             centrality_dict[dist_map[index]] = cell
+    #     return centrality_dict
+
+    # @staticmethod
+    # def centrality_dict_wachers(dist_dict, dist_map):
+    #     centrality_dict = dict()
+    #     for index, cell in enumerate(dist_dict):
+    #         tmp_cell_all_dist = sum(cell)
+    #         if tmp_cell_all_dist:
+    #             centrality_dict[dist_map[index]] = tmp_cell_all_dist
+    #     return centrality_dict
+
+    # @staticmethod
+    # def print_pivot(world, pivot):
+    #     tmp = np.copy(world.grid_map)
+    #     for cell in pivot.keys():
+    #         tmp[cell] = 3
+    #     # plt.figure(1)
+    #     plt.pcolormesh(tmp, edgecolors='grey', linewidth=0.01)
+    #     plt.gca().set_aspect('equal')
+    #     plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
+    # # plt.show()
+
+    # @staticmethod
+    # def print_whacer(world, tmp_cell):
+    #     for pivot_cell in tmp_cell:
+    #         tmp = np.copy(world.grid_map)
+    #         for cell in world.dict_wachers[pivot_cell]:
+    #             tmp[cell] = 3
+    #         tmp[pivot_cell] = 2
+    #
+    #         # plt.figure(pivot_cell.__str__())
+    #         plt.pcolormesh(tmp, edgecolors='grey', linewidth=0.01)
+    #         plt.gca().set_aspect('equal')
+    #         plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
+    #
+    #     plt.show()
 
     @staticmethod
-    def centrality_dict(dist_dict, dist_map):
-        centrality_dict = dict()
-        for index, cell in enumerate(dist_dict):
-            # tmp_cell_all_dist = sum(cell)
-            if cell:
-                centrality_dict[dist_map[index]] = cell
-        return centrality_dict
-
-    @staticmethod
-    def centrality_dict_wachers(dist_dict, dist_map):
-        centrality_dict = dict()
-        for index, cell in enumerate(dist_dict):
-            tmp_cell_all_dist = sum(cell)
-            if tmp_cell_all_dist:
-                centrality_dict[dist_map[index]] = tmp_cell_all_dist
-        return centrality_dict
-
-    @staticmethod
-    def centrality_tie_see(dist_dict, grid_map, dist_wachers):
-        centrality_list = []
-        for index, cell in enumerate(dist_dict):
-            tmp_cell_all_dist = sum(cell)
-            tmp_index = 0
-            if tmp_cell_all_dist:
-                new_cell = tuple((divmod(index, grid_map.shape[1])))
-                for i in range(centrality_list.__len__()):
-                    if tmp_cell_all_dist > centrality_list[i][0]:
-                        break
-                    elif tmp_cell_all_dist == centrality_list[i][0]:
-                        if dist_wachers[new_cell].__len__() < dist_wachers[centrality_list[i][1]].__len__():
-                            break
-                    tmp_index += 1
-
-                centrality_list.insert(tmp_index, tuple((tmp_cell_all_dist, new_cell)))
-        return centrality_list
-
-    @staticmethod
-    def centrality_tie_wahcers(dist_dict, grid_map, dist_wachers):
-        centrality_list = []
-        for index, cell in enumerate(dist_dict):
-            tmp_cell_all_dist = sum(cell)
-            tmp_index = 0
-            if tmp_cell_all_dist:
-                new_cell = tuple((divmod(index, grid_map.shape[1])))
-                for i in range(centrality_list.__len__()):
-                    if dist_wachers[new_cell].__len__() < dist_wachers[centrality_list[i][1]].__len__():
-                        break
-                    elif dist_wachers[new_cell].__len__() < dist_wachers[centrality_list[i][1]].__len__():
-                        if tmp_cell_all_dist > centrality_list[i][0]:
-                            break
-                    tmp_index += 1
-
-                centrality_list.insert(tmp_index, tuple((tmp_cell_all_dist, new_cell)))
-        return centrality_list
-
-    @staticmethod
-    def centrality_meen_see(dist_wachers):
-        centrality_list = []
-        for cell in dist_wachers:
-            centrality_list.append(tuple((dist_wachers[cell].__len__(), cell)))
-        centrality_list = sorted(centrality_list)
-        return centrality_list
-
-    @staticmethod
-    def print_pivot(world, pivot):
+    def print_all_whacers(world: object, whacers_cell: tuple) -> None:
+        """
+        Displays the map with desired cell and their whacers
+        :param world: map object
+        :param tmp_cell:
+        """
         tmp = np.copy(world.grid_map)
-        for cell in pivot.keys():
-            tmp[cell] = 3
-        # plt.figure(1)
-        plt.pcolormesh(tmp, edgecolors='grey', linewidth=0.01)
-        plt.gca().set_aspect('equal')
-        plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
 
-    # plt.show()
-
-    @staticmethod
-    def print_whacer(world, tmp_cell):
-        for pivot_cell in tmp_cell:
-            tmp = np.copy(world.grid_map)
-            for cell in world.dict_wachers[pivot_cell]:
-                tmp[cell] = 3
-            tmp[pivot_cell] = 2
-
-            # plt.figure(pivot_cell.__str__())
-            plt.pcolormesh(tmp, edgecolors='grey', linewidth=0.01)
-            plt.gca().set_aspect('equal')
-            plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
-
-        plt.show()
-
-    @staticmethod
-    def print_all_whacers(world, tmp_cell):
-        tmp = np.copy(world.grid_map)
-       # plt.rcParams["figure.figsize"] = (11, 7)
-        for pivot_cell in tmp_cell:
+        #Changes the colors of all whacers
+        for pivot_cell in whacers_cell:
             for cell_2 in pivot_cell:
                 for cell in world.dict_wachers[cell_2]:
                     if not tmp[cell] == 2:
                         tmp[cell] = 3
                 tmp[cell_2] = 2
 
-
+        colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
         # white    black       blue            red     yellow      green           grey
-
         cmap = c.ListedColormap([colors[i] for i in [0, 1, -2, -1]])
-
         plt.pcolormesh(tmp, cmap=cmap, edgecolors='black', linewidth=0.01)
         plt.gca().set_aspect('equal')
         plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
-
         plt.show()
 
     @staticmethod
-    def print_map(world):
-
+    def print_map(world: object) -> None:
+        """
+        Displays only  the map
+        :param world: map object
+        """
+        colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
         # white    black       blue            red     yellow      green           grey
-
         cmap = c.ListedColormap([colors[i] for i in [0, 1]])
-
         plt.pcolormesh(world.grid_map, cmap=cmap, edgecolors='black', linewidth=0.01)
         plt.gca().set_aspect('equal')
         plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
 
         plt.show()
 
-
     @staticmethod
-    def print_serch_status(world, node,start_time,expend,genrate,move,pivot=[]):
+    def print_serch_status(world: object, node: object, start_time: float,
+                           expend: int, genrate: int, move: bool, pivot: list = []) -> None:
+        """
+        Displays the map with all state
+        :param world: map object
+        :param node: the new node we need to present
+        :param start_time: time froom the start
+        :param expend: number of expend node
+        :param genrate: number of genrate node
+        :param move: flag if move == True The image will change as the algorithm runs
+        :param pivot: the pivot cell
+        """
+        colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
+        # white    black       blue            red     yellow      green           grey
+
         tmp = np.copy(world.grid_map)
         plt.rcParams["figure.figsize"] = (11, 7)
+
+        # Paint the cell we have already seen
         seen=set(world.dict_wachers.keys())-node.unseen
         for cell in seen:
             tmp[cell] = 3
 
+        # Paint the cell with the location of the agents
         for cell in node.location:
             tmp[cell] = 2
 
+        # Paint the cell with the pivot and ther whacers
         if pivot.__len__()>0:
             cmap = c.ListedColormap([colors[i] for i in [0, 1, -2, -1, 4, 3]])
 
@@ -218,7 +179,13 @@ class Utils:
             plt.show()
 
     @staticmethod
-    def print_fov(grid_map, all_cell, main_cell):
+    def print_fov(grid_map: list, all_cell: tuple, main_cell: tuple) -> None:
+        """
+        print the fov of a spsefic cell
+        :param grid_map: the map
+        :param all_cell:
+        :param main_cell:
+        """
         tmp = np.copy(grid_map)
 
         for cell in all_cell:
@@ -232,64 +199,73 @@ class Utils:
         plt.show()
 
     @staticmethod
-    def map_to_sets(cell):
-        return set(map(tuple, [cell]))
+    def map_to_sets(cell: tuple) -> set:
+       """
+        convert all cell from tupel to set
+       :param cell: all cell that need to convert
+       :return: converted cell
+       """
+       return set(map(tuple, [cell]))
 
     @staticmethod
-    def convert_map(map_config):
-        # row_map = []
-
+    def convert_map(map_config: str) -> list:
+        """
+        convert map from str(@,.) format to int format (1,0)
+        :rtype: the converted map
+        """
         with open(map_config, newline='') as txtfile:
-            # all_row = []
             row_map = [[0 if cell == '.' else 1 for cell in row[:-1]] for row in txtfile.readlines()]
-
         return row_map
 
     @staticmethod
-    def sort_list(list_a):
+    def sort_list(list_a: list) -> tuple:
+        """
+        sort a list and retorn the sorted order and the sort list
+        :param list_a:
+        :return: sorted list , sorted index as dict
+        """
         sorted_list_a = sorted(list_a)
         sort_dick = {data: i for i, data in enumerate(sorted(range(len(list_a)), key=list_a.__getitem__))}
         return tuple(sorted_list_a), sort_dick
 
+    #
+    # @staticmethod
+    # def print_path(all_path, see_agent_walk,world):
+    #     tmp_location = []
+    #     for cell in all_path:
+    #
+    #         # print(f'L = {cell.location} \t h = {cell.heuristics} ')
+    #         tmp_location.append(cell.location)
+    #         tmp_word = np.copy(world.grid_map)
+    #         for k in cell.unseen:
+    #             tmp_word[k] = 2
+    #         for j in cell.location:
+    #             tmp_word[j] = 3
+    #         if see_agent_walk:
+    #             plt.figure(1)
+    #             plt.pcolormesh(tmp_word, edgecolors='black', linewidth=0.01)
+    #             plt.gca().set_aspect('equal')
+    #             plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
+    #             plt.draw()
+    #             plt.pause(0.001)
+    #             plt.clf()
+    #             time.sleep(0.5)
+    #     plt.close('all')
+    #     Utils.print_all_whacers(world, tmp_location)
 
-    @staticmethod
-    def print_path(all_path, see_agent_walk,world):
-        tmp_location = []
-        for cell in all_path:
 
-            # print(f'L = {cell.location} \t h = {cell.heuristics} ')
-            tmp_location.append(cell.location)
-            tmp_word = np.copy(world.grid_map)
-            for k in cell.unseen:
-                tmp_word[k] = 2
-            for j in cell.location:
-                tmp_word[j] = 3
-            if see_agent_walk:
-                plt.figure(1)
-                plt.pcolormesh(tmp_word, edgecolors='black', linewidth=0.01)
-                plt.gca().set_aspect('equal')
-                plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
-                plt.draw()
-                plt.pause(0.001)
-                plt.clf()
-                time.sleep(0.5)
-        plt.close('all')
-        Utils.print_all_whacers(world, tmp_location)
-
-
-        @staticmethod
-        def replace_in_heap(heap, index_in_heap, item):
-            # Replace in_closed with new_node in open
-            parent_index = (index_in_heap - 1) >> 1
-            while index_in_heap != 0:
-                heap[parent_index], heap[index_in_heap] = (
-                    heap[index_in_heap],
-                    heap[parent_index],
-                )
-                index_in_heap = parent_index
-                parent_index = (index_in_heap - 1) >> 1
-            # in_closed is now at 0
-            heapq.heapreplace(heap, item)
+        # @staticmethod
+        # def replace_in_heap(heap, index_in_heap, item):
+        #     # Replace in_closed with new_node in open
+        #     parent_index = (index_in_heap - 1) >> 1
+        #     while index_in_heap != 0:
+        #         heap[parent_index], heap[index_in_heap] = (
+        #             heap[index_in_heap],
+        #             heap[parent_index], )
+        #         index_in_heap = parent_index
+        #         parent_index = (index_in_heap - 1) >> 1
+        #     # in_closed is now at 0
+        #     heapq.heapreplace(heap, item)
 
 class Node:
 
@@ -301,17 +277,26 @@ class Node:
         self.f = f
         self.dead_agent = dead_agent
         self.first_genarate = False
-        self.cost_map=self.__costmap__()
+        self.cost_map=self._cost_map()
 
         if minimize == 0:
-            self.get_cost = lambda node: max(np.abs(node.cost))
+            self.get_cost = self.get_max_cost
         else:
-            self.get_cost = lambda node: sum(np.abs(node.cost))
+            self.get_cost = self.get_sum_cost
 
-    def __sort__(self):
-        return tuple(sorted((self.location)))
+    def get_max_cost(self,node):
+        return max(node.cost),max(self.cost)
 
-    def __costmap__(self):
+    def get_sum_cost(self,node):
+        return sum(node.cost),sum(self.cost)
+
+    # def get_max_cost(self,node):
+    #     return max(np.abs(node.cost)),max(np.abs(self.cost))
+    #
+    # def get_sum_cost(self,node):
+    #     return sum(np.abs(node.cost)),sum(np.abs(self.cost))
+
+    def _cost_map(self):
         cost_map=dict()
         for index , cell in enumerate(self.location):
             if cell not in cost_map:
@@ -323,50 +308,42 @@ class Node:
             cost_map[cell] = sorted(cost_map[cell])
         return cost_map
 
-    def __cmp__(self,oder,minimize):
-
-        if self.f == oder.f:
-        # first tiebreaker smallest unseen is wining
-            if self.unseen.__len__() == oder.unseen.__len__():
-                if minimize == 0:
-                    # cost for mksp
-                    cost_oder = max(np.abs(oder.cost))
-                    cost_self = max(np.abs(self.cost))
-
-                else:
-                    # cost for soc
-                    cost_oder = sum(np.abs(oder.cost))
-                    cost_self = sum(np.abs(self.cost))
-
-                # second tiebreaker bisest cost is wining
-                if cost_self == cost_oder:
-                    # Third tiebreaker according to location in memory so as not to be random
-                    if id(self) < id(oder):
-                        return False
-                    else:
-                        return True
-                elif cost_self < cost_oder:
-                    return False
-                else:
-                    return True
-
-            elif self.unseen.__len__() > oder.unseen.__len__():
-                return False
-            else:
-                return True
-        elif self.f > oder.f:
-            return False
-        else:
-            return True
-
+    # def __cmp__(self,oder,minimize):
+    #
+    #     if self.f == oder.f:
+    #     # first tiebreaker smallest unseen is wining
+    #         if self.unseen.__len__() == oder.unseen.__len__():
+    #             cost_oder, cost_self = self.get_cost(oder)
+    #
+    #             # second tiebreaker bisest cost is wining
+    #             if cost_self == cost_oder:
+    #                 # Third tiebreaker according to location in memory so as not to be random
+    #                 if id(self) < id(oder):
+    #                     return False
+    #                 else:
+    #                     return True
+    #             elif cost_self < cost_oder:
+    #                 return False
+    #             else:
+    #                 return True
+    #
+    #         elif self.unseen.__len__() > oder.unseen.__len__():
+    #             return False
+    #         else:
+    #             return True
+    #     elif self.f > oder.f:
+    #         return False
+    #     else:
+    #         return True
 
     def __lt__(self,oder):
-
-        if self.f == oder.f:
+        abs_oder_f=abs(oder.f)
+        abs_self_f=abs(self.f)
+        if abs_self_f == abs_oder_f:
         # first tiebreaker smallest unseen is wining
             if self.unseen.__len__() == oder.unseen.__len__():
-                cost_oder=self.get_cost(oder)
-                cost_self=self.get_cost(self)
+                cost_oder,cost_self=self.get_cost(oder)
+                #=self.get_cost(self)
                 # second tiebreaker bisest cost is wining
                 if cost_self == cost_oder:
                     # Third tiebreaker according to location in memory so as not to be random
@@ -383,7 +360,7 @@ class Node:
                 return False
             else:
                 return True
-        elif self.f > oder.f:
+        elif abs_self_f > abs_oder_f:
             return False
         else:
             return True

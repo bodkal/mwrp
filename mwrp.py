@@ -63,7 +63,7 @@ class Mwrp:
         self.centrality_dict = self.centrality_list_wachers(unseen_all)
 
         pivot = self.get_pivot(unseen_all)
-        start_pos=tuple(list(pivot.keys())[:self.number_of_agent])
+        #start_pos=tuple(list(pivot.keys())[:self.number_of_agent])
 
         # Filters all the cells that can be seen from the starting position
         unseen_start = unseen_all - self.world.get_all_seen(start_pos)
@@ -244,28 +244,42 @@ class Mwrp:
 
         return pivot
 
-    def find_index_insert_to_open(self, new_node: Node) -> int:
-        """
-        find the index in open list for the new_node with binry search
-        :param new_node: node that need to insert to open lest
-        :return: the inset index in open list
-        """
-        # search lb
-        index_a = 0
+    # def find_index_insert_to_open(self, new_node: Node) -> int:
+    #     """
+    #     find the index in open list for the new_node with binry search
+    #     :param new_node: node that need to insert to open lest
+    #     :return: the inset index in open list
+    #     """
+    #     # search lb
+    #     index_a = 0
+    #
+    #     # search hb
+    #     index_b = len(self.open_list)
+    #
+    #     # binry search
+    #     while index_a < index_b:
+    #         mid = (index_a + index_b) // 2
+    #         data = self.open_list[mid]
+    #         index_up=new_node.__cmp__(data,self.minimize)
+    #         if index_up == False:
+    #             index_b = mid
+    #         else:
+    #             index_a = mid + 1
+    #     return index_a
 
-        # search hb
-        index_b = len(self.open_list)
-
-        # binry search
-        while index_a < index_b:
-            mid = (index_a + index_b) // 2
-            data = self.open_list[mid]
-            index_up=new_node.__cmp__(data,self.minimize)
-            if index_up == False:
-                index_b = mid
-            else:
-                index_a = mid + 1
-        return index_a
+    # def replace_in_heap(self, old_node, new_node):
+    #
+    #     index_in_heap=self.open_list.index(old_node)
+    #
+    #     # Replace in_closed with new_node in open
+    #     parent_index = (index_in_heap - 1) >> 1
+    #     while index_in_heap != 0:
+    #         self.open_list[parent_index], self.open_list[index_in_heap] = \
+    #             (self.open_list[index_in_heap],self.open_list[parent_index],)
+    #         index_in_heap = parent_index
+    #         parent_index = (index_in_heap - 1) >> 1
+    #     # in_closed is now at 0
+    #     heapq.heapreplace(self.open_list, new_node)
 
     def find_index_for_open_and_inset(self, new_node: Node) -> None:
         """
@@ -338,11 +352,11 @@ class Mwrp:
             #pop_open_list = self.open_list.pop()
 
             pop_open_list = heapq.heappop(self.open_list)
-            # Throws zombie node to the bin (zombie node = cost < 0)
-            while max(pop_open_list.cost) < 0:
+            # Throws zombie node to the bin (zombie node -> dead_agent = True)
+            while pop_open_list.f < 0:
+
                 #pop_open_list = self.open_list.pop()
                 pop_open_list = heapq.heappop(self.open_list)
-
         else:
             pop_open_list = 0
 
@@ -358,6 +372,7 @@ class Mwrp:
         key = tuple(sorted((cell_a, cell_b)))
         return self.real_dis_dic[key]
 
+    # TODO  serch only fronter no need to cach all wacers
     def get_closest_wachers(self, cell_a: tuple, cell_b: tuple) -> int:
         """
         get the closest wachers between 2 cells
@@ -592,7 +607,6 @@ class Mwrp:
         # Returns the best valued node currently in the open list
         old_state = self.pop_open_list()
 
-
         if self.huristic_index == 3:
             if old_state.first_genarate == False:
                 mtsp = self.mtsp_heuristic(old_state)
@@ -601,7 +615,7 @@ class Mwrp:
                     old_state.f = mtsp
                     self.insert_to_open_list_lazy_max(old_state)
                     return False
-        #Utils.print_serch_status(self.world, old_state, self.start_time, self.expend, 0, move=True)
+
         # Checks if there are no more cell left to see (len(unseen)==0)
         if self.goal_test(old_state.unseen):
             return old_state
@@ -656,6 +670,7 @@ class Mwrp:
                 for index, new_cell in enumerate(new_node.cost_map.keys()):
                     if cost_win == -5:
                         break
+
                     # A loop that passes through all the agents stnding in a particular cell (can be more than 1 such)
                     for i in range(new_node.cost_map[new_cell].__len__()):
                         if new_node.cost_map[new_cell][i] >= old_node.cost_map[new_cell][i] and cost_win >= 0:
@@ -667,21 +682,23 @@ class Mwrp:
                         else:
                             cost_win = -5
 
+            # In soc the comparison can be made by only the sum of the cost
             elif self.minimize == 1:
-                # In soc the comparison can be made by the sum of the cost
-                if sum(new_node.cost) >= sum(old_node.cost):
-                    cost_win = 1
-                elif sum(new_node.cost) <= sum(old_node.cost):
-                    cost_win = -1
+                cost_win = 1 if sum(new_node.cost) >= sum(old_node.cost) else -1
 
             if cost_win == 1 and old_node.unseen.issubset(new_node.unseen):
                 self.open_is_beter += 1
-
                 return False
 
             elif cost_win == -1 and new_node.unseen.issubset(old_node.unseen):
                 self.new_is_beter += 1
-                old_node.cost = [-max(old_node.cost)] * self.number_of_agent
+
+               # self.replace_in_heap()
+                #old_node.cost = [-max(old_node.cost)] * self.number_of_agent
+                old_node.f = -old_node.f
+
+                #old_node.dead_agent=True
+                #old_node.valid_node=False
                 all_index.add(index)
 
         if all_index.__len__() > 0:
@@ -718,7 +735,8 @@ class Mwrp:
                                  [0] * self.number_of_agent])
                 return
 
-        all_path = self.get_path(goal_node, print_path=False)
+        # TODO  get fall path not only jump point
+        #all_path = self.get_path(goal_node, print_path=True)
 
         if self.genrate_node > 0:
             h_gen = self.H_genrate / self.genrate_node
@@ -748,8 +766,13 @@ class Mwrp:
 
 
 if __name__ == '__main__':
-    map_type = 'small_for_movs'
-    name = 'pivot_start'
+    map_type = 'maze_11_11'
+    name = 'test'
+    # run from consuall
+    # if sys.argv:
+    #    # huristics_exp = [int(sys.argv[1])]
+    #     loop_number_of_agent = [int(sys.argv[1])]
+
     experement_name = f'{map_type}_{name}'
     map_config = f'./config/{map_type}_config.csv'
 
@@ -759,71 +782,43 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 5
+    exp_number = 1
 
-
-    #  huristics_exp=[2]
     loop_number_of_agent = [2]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
-    # if sys.argv:
-    #    # huristics_exp = [int(sys.argv[1])]
-    #     loop_number_of_agent = [int(sys.argv[1])]
-
-
     start_in = 0
     exp_index = 0
+
+    # remove_obs_number = 1
+    # maps = pickle.load(open("all_maps_for_remove.p", "rb"))[:-1]
+    # remove_obs_number=maps.__len__()
+
     data_file = open(f'{experement_name}_{loop_number_of_agent[0]}_agent_{huristics_exp[0]}_huristic.csv', 'w',newline='\n')
-    # for ii in range(100):
-    #     start_pos = tuple(tuple(all_free[randint(0,all_free.__len__()-1)]) for f in range(loop_number_of_agent[0]))
-    #     print(start_pos)
-
-    # data_file = open(f'{loop_number_of_agent}_agent_{datetime.now()}.csv', 'w', newline='\n')
-
     writer = csv.writer(data_file, delimiter=',')
     writer.writerow(
         ['map_name', 'start_state', 'time', 'h type', 'h_start', 'h_genarate', 'h_expend', 'number of max pivot',
          'use black list', 'genarate', 'expend', 'open is beter', 'new is beter', 'obs remove', 'cost'])
 
-    # start_config_as_string = np.loadtxt(f'./config/{map_type}_{15}_agent_domain.csv', dtype=tuple,delimiter='\n')
-    # all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
-
-    # all_start_config_as_tupel = [tuple((i[0],i[1],i[2],i[3],i[4],i[5],i[6],i[7],i[8],i[9],i[10],i[11],i[12],i[13],i[14],tuple(all_free[randint(0,all_free.__len__()-1)]))) for i in all_start_config_as_tupel]
-    # for i in all_start_config_as_tupel:
-    #     print(i)
-    # # all_start_config_as_tupel=[((1,1),())]
-    # remove_obs_number = 1
-
-    # maps = pickle.load(open("all_maps_for_remove.p", "rb"))[:-1]
-    # remove_obs_number=maps.__len__()
-    
     row_map = Utils.convert_map(map_config)
     remove_obs_number=1
-    with alive_bar(
-            loop_number_of_agent.__len__() * exp_number * len(huristics_exp) * len(pivot) * remove_obs_number) as bar:
+    with alive_bar(loop_number_of_agent.__len__() * exp_number * len(huristics_exp) * len(pivot) * remove_obs_number) as bar:
         for max_pivot in pivot:
             for number_of_agent in loop_number_of_agent:
-                # start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
-                #                                     dtype=tuple, delimiter='\n')
-                # all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
-                # all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
-                #all_start_config_as_tupel=[((1,1),(19,19))]
                 for remove_obs in range(remove_obs_number):
-                    # start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
-                    #                                     dtype=tuple, delimiter='\n')
-                    # all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
-                    # all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
+                    start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
+                                                        dtype=tuple, delimiter='\n')
+                    all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
+                    all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
 
                     #all_start_config_as_tupel=list(map(tuple,all_free))
-                    all_start_config_as_tupel=[[0]*number_of_agent]
-                    for start_pos in all_start_config_as_tupel:
-                       # start_pos=tuple([start_pos]*number_of_agent)
+                    #all_start_config_as_tupel=[[0]*number_of_agent]
 
+                    for start_pos in all_start_config_as_tupel:
                         for huristic in huristics_exp:
                             if exp_index >= start_in:
                                 world = WorldMap(np.array(row_map), LOS)
-                                Utils.print_map(world)
                                 mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['soc'])
                                 mwrp.run(writer, map_config, start_pos, remove_obs)
                             bar()
