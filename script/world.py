@@ -2,14 +2,14 @@ import numpy as np
 from itertools import product
 from time import time
 import sys
-from script.utils import Bresenhams ,Utils
+from script.utils import Vision ,Utils
 from script.BFS import BFS
 
 class WorldMap:
 
     def __init__(self, row_map,los):
         self.grid_map = row_map.astype(np.int8)
-        self.breas = Bresenhams(self.grid_map)
+        self.vision = Vision(self.grid_map)
 
 
         [self.col_max,self.row_max] = self.grid_map.shape
@@ -93,7 +93,6 @@ class WorldMap:
         all_obstical = [i for i in np.transpose(np.where(np.array(self.grid_map) == 1))
                                  if not np.any(i == 0) and i[0] != self.col_max - 1 and i[1] != self.row_max - 1]
 
-        #print(self.grid_map)
         while number_of_obstical_to_remove>0 and all_obstical.__len__()>0:
             random_obstical=all_obstical.pop(random.randrange(len(all_obstical)))
             actihon=self.get_static_action_4(1)+random_obstical
@@ -116,112 +115,10 @@ class WorldMap:
                 number_of_obstical_to_remove-=1
         return self.grid_map
 
-
-    # def los_4(self, state):
-    #
-    #     los4=np.zeros((1,2)).astype(int)
-    #     for i in range(state[1]+1,self.row_max):
-    #         if self.grid_map[state[0],i] == 1:
-    #             break
-    #         los4=np.vstack((los4,[state[0],i]))
-    #
-    #     for i in np.flip(range(state[1])):
-    #         if self.grid_map[state[0],i] == 1:
-    #             break
-    #         los4=np.vstack((los4,[state[0],i]))
-    #
-    #     for i in range(state[0],self.col_max):
-    #         if self.grid_map[i,state[1]] == 1:
-    #             break
-    #         los4=np.vstack((los4,[i,state[1]]))
-    #
-    #     for i in np.flip(range(state[0])):
-    #         if self.grid_map[i,state[1]] == 1:
-    #             break
-    #         los4=np.vstack((los4,[i,state[1]]))
-    #
-    #     return los4[1:]
-    #
-    # def los_4_test(self, state,tmp_map):
-    #
-    #     for i in range(state[1] + 1, self.row_max):
-    #         if self.grid_map[state[0], i] == 1:
-    #             break
-    #         tmp_map[state[0], i]=2
-    #
-    #     for i in np.flip(range(state[1])):
-    #         if self.grid_map[state[0], i] == 1:
-    #             break
-    #         tmp_map[state[0], i] = 2
-    #
-    #     for i in range(state[0], self.col_max):
-    #         if self.grid_map[i, state[1]] == 1:
-    #             break
-    #         tmp_map[i, state[1]]=2
-    #
-    #     for i in np.flip(range(state[0])):
-    #         if self.grid_map[i, state[1]] == 1:
-    #             break
-    #         tmp_map[i, state[1]]=2
-    #
-    #     return tmp_map
-    #
-    #
-    # def los_8(self, state):
-    #     los8=self.los_4(state)
-    #     for i in range(1,self.row_max):
-    #         if self.grid_map[state[0]+i,state[1]+ i] == 1:
-    #             break
-    #         los8=np.vstack((los8,[state[0]+i,state[1]+ i]))
-    #
-    #     for i in range(1,min(state[0],state[1])):
-    #         if self.grid_map[state[0]-i,state[1]- i] == 1:
-    #             break
-    #         los8=np.vstack((los8,[state[0]-i,state[1]- i]))
-    #
-    #     for i in range(1,self.col_max):
-    #         if self.grid_map[state[0]-i,state[1]+ i] == 1:
-    #             break
-    #         los8=np.vstack((los8,[state[0]-i,state[1]+ i]))
-    #
-    #     for i in range(1,max(state[0],state[1])):
-    #         if self.grid_map[state[0]+i,state[1] - i] == 1:
-    #             break
-    #         los8=np.vstack((los8,[state[0]+i,state[1]- i]))
-    #
-    #     return los8
-    #
-    #
-    # def get_seen_from_cell(self,state):
-    #     seen=0
-    #     if (self.LOS == 9):
-    #         seen=self.los_9(state)
-    #     elif (self.LOS  == 8):
-    #         seen=self.los_8(state)
-    #     elif (self.LOS  == 5):
-    #         seen=self.los_5(state)
-    #     elif (self.LOS  == 4):
-    #         seen=self.los_4(state)
-    #     return set(map(tuple,seen))
-
-    # def get_seen_from_cell_breas(self,state):
-    #     return self.get_fov()
-
-
-
-
-    # def create_wachers(self):
-    #     all_free_cell=set(map(tuple,np.asarray(np.where(self.grid_map == 0)).T))
-    #     for cell in all_free_cell:
-    #         self.dict_wachers[cell] = self.get_fov(cell)
-
-
-
-
     def create_wachers(self):
         all_free_cell = set(map(tuple, np.asarray(np.where(self.grid_map == 0)).T))
         for cell in all_free_cell:
-            tmp_set = self.get_fov(cell)
+            tmp_set = self.vision.get_fov(cell)
             #if cell == (7,13):
             #Utils.print_fov(self.grid_map,tmp_set,cell)
             self.dict_fov[cell]=tmp_set
@@ -262,32 +159,7 @@ class WorldMap:
 
 
 
-    def get_fov(self,start_cell):
-        all_seen = set()
 
-        for y in range(self.grid_map.shape[1]):
-            end_cell=(0,y)
-            tmp_seen = self.breas.get_line(start_cell, end_cell)
-            all_seen = all_seen | tmp_seen
-
-        for x in range(1,self.grid_map.shape[0]):
-            end_cell = (x,0)
-            tmp_seen = self.breas.get_line(start_cell, end_cell)
-            all_seen = all_seen | tmp_seen
-
-        for x in range(1,self.grid_map.shape[0]):
-            end_cell = (x,self.grid_map.shape[1]-1)
-            tmp_seen = self.breas.get_line(start_cell, end_cell)
-            all_seen = all_seen | tmp_seen
-
-        for y in range(self.grid_map.shape[1]):
-            end_cell=(self.grid_map.shape[0]-1,y)
-            tmp_seen= self.breas.get_line(start_cell, end_cell)
-            all_seen= all_seen | tmp_seen
-
-
-
-        return all_seen
 
 
 

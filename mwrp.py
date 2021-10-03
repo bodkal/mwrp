@@ -43,6 +43,7 @@ class Mwrp:
         self.H_expend = 0
         self.open_is_beter = 0
         self.new_is_beter = 0
+        self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).run()
 
         # Checks whether we have previously calculated the distance between all the cell on the map and the centrality
         try:
@@ -51,7 +52,7 @@ class Mwrp:
         except:
             # calculated the distance between all the cell on the map and the centrality and save to file
             print('start FloydWarshall')
-            self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).floyd_warshall()
+            self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).run()
             pickle.dump(self.real_dis_dic, open(f"config/real_dis_dic_{map_name}.p", "wb"))
             pickle.dump(self.centrality_dict, open(f"config/centrality_dict_{map_name}.p", "wb"))
             print('end FloydWarshall')
@@ -270,7 +271,7 @@ class Mwrp:
     # def replace_in_heap(self, old_node, new_node):
     #
     #     index_in_heap=self.open_list.index(old_node)
-    #
+
     #     # Replace in_closed with new_node in open
     #     parent_index = (index_in_heap - 1) >> 1
     #     while index_in_heap != 0:
@@ -281,7 +282,7 @@ class Mwrp:
     #     # in_closed is now at 0
     #     heapq.heapreplace(self.open_list, new_node)
 
-    def find_index_for_open_and_inset(self, new_node: Node) -> None:
+    def insert_to_open_and_cunt(self, new_node: Node) -> None:
         """
         insert the new node to open lest
         :param new_node: node that need to insert to open lest
@@ -289,10 +290,6 @@ class Mwrp:
         # Need it only for the experiments
         self.genrate_node += 1
         self.H_genrate += new_node.f
-
-        #index = self.find_index_insert_to_open(new_node)
-        #self.open_list.insert(index, new_node)
-
         heapq.heappush(self.open_list,new_node)
 
     def insert_to_open_list_lazy_max(self, new_node: Node) -> None:
@@ -311,7 +308,7 @@ class Mwrp:
             if not new_node.first_genarate:
                 new_node.f = self.singelton_heuristic(new_node)
                 self.visit_list_dic[state] = [new_node]
-            self.find_index_for_open_and_inset(new_node)
+            self.insert_to_open_and_cunt(new_node)
 
         # find if is an already node in open list or close lest (visit_list_dic) and if the new node is beter
         elif self.need_to_fix_parent(new_node, state):
@@ -320,7 +317,7 @@ class Mwrp:
             if not new_node.first_genarate:
                 new_node.f = self.singelton_heuristic(new_node)
                 self.visit_list_dic[state].append(new_node)
-            self.find_index_for_open_and_inset(new_node)
+            self.insert_to_open_and_cunt(new_node)
 
     def insert_to_open_list(self,new_node: Node) -> None:
         """
@@ -334,13 +331,13 @@ class Mwrp:
         # find if the new node is already in open list or close lest (visit_list_dic)
         if not self.in_open_or_close(state):
             new_node.f = self.get_heuristic(new_node)
-            self.find_index_for_open_and_inset(new_node)
+            self.insert_to_open_and_cunt(new_node)
             self.visit_list_dic[state] = [new_node]
 
         # find if is an already node in open list or close lest (visit_list_dic) and if the new node is beter
         elif self.need_to_fix_parent(new_node, state):
             new_node.f = self.get_heuristic(new_node)
-            self.find_index_for_open_and_inset(new_node)
+            self.insert_to_open_and_cunt(new_node)
             self.visit_list_dic[state].append(new_node)
 
     def pop_open_list(self) -> None:
@@ -606,7 +603,6 @@ class Mwrp:
     def expend(self):
         # Returns the best valued node currently in the open list
         old_state = self.pop_open_list()
-
         if self.huristic_index == 3:
             if old_state.first_genarate == False:
                 mtsp = self.mtsp_heuristic(old_state)
@@ -736,7 +732,7 @@ class Mwrp:
                 return
 
         # TODO  get fall path not only jump point
-        #all_path = self.get_path(goal_node, print_path=True)
+        # all_path = self.get_path(goal_node, print_path=True)
 
         if self.genrate_node > 0:
             h_gen = self.H_genrate / self.genrate_node
@@ -784,7 +780,7 @@ if __name__ == '__main__':
     pivot = [5]
     exp_number = 1
 
-    loop_number_of_agent = [2]
+    loop_number_of_agent = [3]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
@@ -819,6 +815,6 @@ if __name__ == '__main__':
                         for huristic in huristics_exp:
                             if exp_index >= start_in:
                                 world = WorldMap(np.array(row_map), LOS)
-                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['soc'])
+                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['mksp'])
                                 mwrp.run(writer, map_config, start_pos, remove_obs)
                             bar()
