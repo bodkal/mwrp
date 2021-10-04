@@ -4,7 +4,7 @@ class node:
         self.location = location
         self.cost = cost
 
-    def __print__(self):
+    def __str__(self):
         print(f'location = {self.location} \t cost = {self.cost}')
 
 class BFS:

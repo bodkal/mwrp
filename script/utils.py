@@ -34,50 +34,6 @@ class Utils:
 
         return random_map
 
-    # @staticmethod
-    # def centrality_dict(dist_dict, dist_map):
-    #     centrality_dict = dict()
-    #     for index, cell in enumerate(dist_dict):
-    #         # tmp_cell_all_dist = sum(cell)
-    #         if cell:
-    #             centrality_dict[dist_map[index]] = cell
-    #     return centrality_dict
-
-    # @staticmethod
-    # def centrality_dict_wachers(dist_dict, dist_map):
-    #     centrality_dict = dict()
-    #     for index, cell in enumerate(dist_dict):
-    #         tmp_cell_all_dist = sum(cell)
-    #         if tmp_cell_all_dist:
-    #             centrality_dict[dist_map[index]] = tmp_cell_all_dist
-    #     return centrality_dict
-
-    # @staticmethod
-    # def print_pivot(world, pivot):
-    #     tmp = np.copy(world.grid_map)
-    #     for cell in pivot.keys():
-    #         tmp[cell] = 3
-    #     # plt.figure(1)
-    #     plt.pcolormesh(tmp, edgecolors='grey', linewidth=0.01)
-    #     plt.gca().set_aspect('equal')
-    #     plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
-    # # plt.show()
-
-    # @staticmethod
-    # def print_whacer(world, tmp_cell):
-    #     for pivot_cell in tmp_cell:
-    #         tmp = np.copy(world.grid_map)
-    #         for cell in world.dict_wachers[pivot_cell]:
-    #             tmp[cell] = 3
-    #         tmp[pivot_cell] = 2
-    #
-    #         # plt.figure(pivot_cell.__str__())
-    #         plt.pcolormesh(tmp, edgecolors='grey', linewidth=0.01)
-    #         plt.gca().set_aspect('equal')
-    #         plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
-    #
-    #     plt.show()
-
     @staticmethod
     def print_all_whacers(world: object, whacers_cell: tuple) -> None:
         """
@@ -227,43 +183,6 @@ class Utils:
         sorted_list_a = sorted(list_a)
         sort_dick = {data: i for i, data in enumerate(sorted(range(len(list_a)), key=list_a.__getitem__))}
         return tuple(sorted_list_a), sort_dick
-
-    # @staticmethod
-    # def print_path(all_path, see_agent_walk,world):
-    #     tmp_location = []
-    #     for cell in all_path:
-    #
-    #         # print(f'L = {cell.location} \t h = {cell.heuristics} ')
-    #         tmp_location.append(cell.location)
-    #         tmp_word = np.copy(world.grid_map)
-    #         for k in cell.unseen:
-    #             tmp_word[k] = 2
-    #         for j in cell.location:
-    #             tmp_word[j] = 3
-    #         if see_agent_walk:
-    #             plt.figure(1)
-    #             plt.pcolormesh(tmp_word, edgecolors='black', linewidth=0.01)
-    #             plt.gca().set_aspect('equal')
-    #             plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
-    #             plt.draw()
-    #             plt.pause(0.001)
-    #             plt.clf()
-    #             time.sleep(0.5)
-    #     plt.close('all')
-    #     Utils.print_all_whacers(world, tmp_location)
-
-    # @staticmethod
-    # def replace_in_heap(heap, index_in_heap, item):
-    #     # Replace in_closed with new_node in open
-    #     parent_index = (index_in_heap - 1) >> 1
-    #     while index_in_heap != 0:
-    #         heap[parent_index], heap[index_in_heap] = (
-    #             heap[index_in_heap],
-    #             heap[parent_index], )
-    #         index_in_heap = parent_index
-    #         parent_index = (index_in_heap - 1) >> 1
-    #     # in_closed is now at 0
-    #     heapq.heapreplace(heap, item)
 
 
 class Node:
@@ -427,7 +346,7 @@ class FloydWarshall:
         """
         INF = self.free_cell_size ** 2
         cost_map = []
-        #bild the list that hold the cost bitwine all cells if no path cost = INF
+        # bild the list that hold the cost bitwine all cells if no path cost = INF
         for main_cell in self.free_cell:
             cost_map.append([abs(x[0] - main_cell[0]) + abs(x[1] - main_cell[1]) if abs(x[0] - main_cell[0]) + abs(
                 x[1] - main_cell[1]) < 2 else INF for x in self.free_cell])
@@ -457,46 +376,52 @@ class FloydWarshall:
         return dict_dist, centrality_dict
 
 
+class LpMtsp:
 
-class lp_mtsp():
+    def __init__(self, agent_number: int, pivot: dict, distance_dict: dict) -> object:
+        """
+        the cplex object to solve the mtsp heuristic
+        :param agent_number: number of agent
+        :param pivot: pivot cell
+        :param distance_dict: dict that hold all distance between cites
+        """
 
-    def __init__(self, agent_number, pivot, distance_dict):
         self.mdl = Model('SD-MTSP')
         self.m = agent_number
-        self.mdl.set_time_limit(50)
-        self.mdl.parameters.threads = 1  # agent_number//2
-        # self.mdl.parameters.threads = 1
 
+        # cplex parameter found bay experiment (There may be better ones)
+        self.mdl.set_time_limit(60)
+        self.mdl.parameters.threads = 1
         self.mdl.parameters.mip.cuts.flowcovers = 1
         self.mdl.parameters.mip.cuts.mircut = 1
         self.mdl.parameters.mip.strategy.probe = 1
         self.mdl.parameters.mip.strategy.variableselect = 4
         self.mdl.parameters.mip.limits.cutpasses = -1
 
-        # self.mdl.parameters.mip.strategy.presolvenode = 2
-        # self.mdl.parameters.mip.strategy.heuristicfreq: 100
-        # self.mdl.parameters.mip.strategy.backtrack: 0.1
-        # self.distance_out = {(0, i): 0 for i in range(1,self.m+1)}
-        # self.distance_in_agent = {(i, 0): 0 for i in range(1,self.m+1)}
-
+        # Holds the expression for minimization need only for mksp
         self.k = self.mdl.continuous_var_dict(1, lb=0, name='k')
 
-        # self.u_start_and_agent=self.mdl.continuous_var_dict(range(self.m+1), lb=0,ub=0, name='u_start_and_agent')
-        # self.u_pivot=self.mdl.continuous_var_dict(pivot.keys(), lb=0, name='u_pivot')
-
+        # u is the city and he well be the cost for the mtsp
         self.u_start_and_agent = self.mdl.continuous_var_dict(range(self.m + 1), lb=0, name='u_start_and_agent')
-        self.mdl.set_var_ub(self.u_start_and_agent[0], 0)
-        # self.u_start_and_agent=self.mdl.continuous_var_dict(range(self.m+1), lb=0,ub=0, name='u_start_and_agent')
-
         self.u_pivot = self.mdl.continuous_var_dict(pivot.keys(), lb=0, name='u_pivot')
 
+        # set virtual point to upper bound of 0
+        self.mdl.set_var_ub(self.u_start_and_agent[0], 0)
+
+        # x is the edges and he well be the cost form city a to city b
         self.x = self.mdl.binary_var_dict(list(distance_dict.keys()), name='x')
 
         self.mdl.minimize(self.k[0])
 
-        # print(self.mdl.export_to_string())
+        # self.mdl.export_to_string() for all continuous
 
-    def add_var(self, pivot, distance_dict):
+    def add_var(self, pivot: dict, distance_dict: dict) -> None:
+        """
+        add u and x base on the cainge in the pivot along the algorithm Makes it not necessary to reproduce
+        all the variables and therefore uses an incremental calculation from the previous runs (defolt in cplex)
+        :param pivot: pivot cell
+        :param distance_dict: dict that hold all distance between cites
+        """
 
         for i in set(pivot.keys()) - set(self.u_pivot.keys()):
             self.u_pivot = {**self.mdl.continuous_var_dict([i], lb=0, name='u_pivot'), **self.u_pivot}
@@ -504,142 +429,135 @@ class lp_mtsp():
         for i in set(distance_dict.keys()) - set(self.x.keys()):
             self.x = {**self.mdl.binary_var_dict([i], lb=0, name='x'), **self.x}
 
-    # def add_var1(self, pivot, distance_dict):
-    #
-    #     for i in pivot - set(self.u_pivot.keys()):
-    #         self.u_pivot = {**self.mdl.continuous_var_dict([i], lb=0, name='u_pivot'), **self.u_pivot}
-    #
-    #     for i in set(distance_dict.keys()) - set(self.x.keys()):
-    #         self.x = {**self.mdl.binary_var_dict([i], lb=0, name='x'), **self.x}
+    def get_mksp(self, distance_dict: dict, pivot: dict, node: object, all_pos: list, world: object) -> int:
+        """
+        calculate the mksp heuristic using a cplex method
+        :param distance_dict: all edge cost
+        :param pivot: pivot cell
+        :param node: the node we want to calculate the heuristic
+        :param all_pos: pos for the plot if need
+        :param world: the world object for the plot if need
+        :return: the heuristic value as f (cost + heuristic)
+        """
 
-    def get_makespan(self, for_plot, w, pivot, n, citys, distance_dict, cost):
+        all_u = self.produces_the_constraints_and_cities(pivot, distance_dict)
 
-        self.mdl.clear_constraints()
-        self.add_var(pivot, distance_dict)
-        all_directed_edges = list(distance_dict.keys())
-
-        all_u = {**self.u_start_and_agent, **{key: self.u_pivot[key] for key in pivot.keys()}}
-
-        # for u in range(1, self.u_start_and_agent.__len__()):
-        #     self.mdl.set_var_lb(self.u_start_and_agent[u], cost[u - 1])
-        #     self.mdl.set_var_ub(self.u_start_and_agent[u], cost[u - 1])
-
-        # max_subtoor
-        self.mdl.add_constraints_([self.k[0] >= self.u_pivot[c] for c in pivot.keys()])
-
-        # 'out'
-        self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in all_directed_edges if i == c) == 1 for c in
-                                   list(all_u.keys())[1:]])
-
-        # in
-        self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in all_directed_edges if j == c) == 1 for c in
-                                   list(all_u.keys())[1:]])
-
-        self.mdl.add_constraint_(self.mdl.sum(self.x[(j, 0)] for j in all_u if j != 0) == self.m)
-
+        # bild the cost for the citys if ther is no edge biween city a and b so edge cost(a) - cost(b) = dist (a,b)
         a, b = zip(*[(self.x[c], all_u[c[1]] == all_u[c[0]] + distance_dict[c])
                      for c in distance_dict.keys() if c[1] != 0])
-
         self.mdl.add_indicators(a, b, [1] * a.__len__())
 
         solucion = self.mdl.solve(log_output=False)
+        if 'optimal' not in self.mdl.solve_details.status:
+            self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
+            raise OptimaltyError
 
-        # print(f'solve - {time() -t}')
-        # cpx = self.mdl.get_engine().get_cplex()
-        # status = cpx.parameters.tune_problem()
-        # if status == cpx.parameters.tuning_status.completed:
-        #     print("tuned parameters:")
-        #     for param, value in cpx.parameters.get_changed():
-        #         print("{0}: {1}".format(repr(param), value))
-        # else:
-        #     print("tuning status was: {0}".format(cpx.parameters.tuning_status[status]))
-
-        if self.mdl.solve_status.name != 'OPTIMAL_SOLUTION':
-            print('-1')
-            return -1
-
-        # self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
+        # print the resolt on nice plot
+        self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
 
         max_u = solucion.get_objective_value()
-        # self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
 
-        return max([round(max_u)] + cost)
+        return max([round(max_u)] + node.cost)
 
-    def get_soc(self, for_plot, w, pivot, n, citys, distance_dict, cost):
+    def get_soc(self, distance_dict: dict, pivot: dict, node: object, all_pos: list, world: object) -> int:
+        """
+        calculate the mksp heuristic using a cplex method
+        :param distance_dict: all edge cost
+        :param pivot: pivot cell
+        :param node: the node we want to calculate the heuristic
+        :param all_pos: pos for the plot if need
+        :param world: the world object for the plot if need
+        :return: the huristec value as f (cost + huristic)
+        """
 
-        self.mdl.clear_constraints()
-        self.add_var(pivot, distance_dict)
-        all_directed_edges = list(distance_dict.keys())
+        _ = self.produces_the_constraints_and_cities(pivot, distance_dict)
 
-        all_u = {**self.u_start_and_agent, **{key: self.u_pivot[key] for key in pivot.keys()}}
-
-        # for u in range(1, self.u_start_and_agent.__len__()):
-        #     self.mdl.set_var_lb(self.u_start_and_agent[u], cost[u - 1])
-        #     self.mdl.set_var_ub(self.u_start_and_agent[u], cost[u - 1])
-
-        # max_subtoor
-        # self.mdl.add_constraint(self.k[0] == self.mdl.sum(self.x[c]*distance_dict[c] for c in all_directed_edges))
-        self.mdl.minimize(self.mdl.sum(self.x[c] * distance_dict[c] for c in all_directed_edges))
-
-        # 'out'
-        self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in all_directed_edges if i == c) == 1 for c in
-                                   list(all_u.keys())[1:]])
-
-        # in
-        self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in all_directed_edges if j == c) == 1 for c in
-                                   list(all_u.keys())[1:]])
-
-        self.mdl.add_constraint_(self.mdl.sum(self.x[(j, 0)] for j in all_u if j != 0) == self.m)
-
-        # a, b = zip(*[(self.x[c], all_u[c[1]] == all_u[c[0]] + distance_dict[c])
-        #              for c in distance_dict.keys() if c[0] != 0 and c[1] != 0])
-        # self.mdl.add_indicators(a, b, [1] * a.__len__())
+        # minimize total edge cost
+        self.mdl.minimize(self.mdl.sum(self.x[c] * distance_dict[c] for c in distance_dict.keys()))
 
         solucion = self.mdl.solve(log_output=False)
 
-        # print(f'solve - {time() -t}')
-        # cpx = self.mdl.get_engine().get_cplex()
-        # status = cpx.parameters.tune_problem()
-        # if status == cpx.parameters.tuning_status.completed:
-        #     print("tuned parameters:")
-        #     for param, value in cpx.parameters.get_changed():
-        #         print("{0}: {1}".format(repr(param), value))
-        # else:
-        #     print("tuning status was: {0}".format(cpx.parameters.tuning_status[status]))
-
-        if self.mdl.solve_status.name != 'OPTIMAL_SOLUTION':
-            print('is not a OPTIMAL_SOLUTION')
-            return None
-
-        # print((solucion.display()))
-        # self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
+        if 'optimal' not in self.mdl.solve_details.status:
+            self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
+            raise OptimaltyError
 
         max_u = solucion.get_objective_value()
-        # self.print_SD_MTSP_on_map(for_plot, all_directed_edges, self.x, w, pivot)
 
         return max_u
 
-    def print_SD_MTSP_on_map(self, for_plot, all_cell_location, best_x, w, p):
-        for_plot = [(0, 0)] + for_plot
-        import matplotlib.pyplot as plt
+    def produces_the_constraints_and_cities(self, pivot: dict, distance_dict: dict) -> dict:
+        """
+        produces the constrain and the cities for the heuristics
+        :param pivot: pivot cell
+        :param distance_dict: all edge cost
+        :return: all citis
+        """
+
+        # clean the model from constraints and add new varibl if need
+        self.mdl.clear_constraints()
+        self.add_var(pivot, distance_dict)
+
+        # combine all citys
+        all_u = {**self.u_start_and_agent, **{key: self.u_pivot[key] for key in pivot.keys()}}
+
+        # min on max suitor
+        self.mdl.add_constraints_([self.k[0] >= self.u_pivot[c] for c in pivot.keys()])
+
+        # edges out form city's
+        self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in distance_dict.keys() if i == c) == 1 for c in
+                                   list(all_u.keys())[1:]])
+
+        # edges int to city's
+        self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in distance_dict.keys() if j == c) == 1 for c in
+                                   list(all_u.keys())[1:]])
+
+        # edges free from cost return to virtual point
+        self.mdl.add_constraint_(self.mdl.sum(self.x[(j, 0)] for j in all_u if j != 0) == self.m)
+
+        return all_u
+
+    def print_SD_MTSP_on_map(self, all_location: list, pivot: dict, node: object, all_pos: list, w: object) -> None:
+        """
+        print the heuristic solution on plot
+        :param all_location: all edge cost
+        :param pivot:  pivot cell
+        :param node: the node we want to calculate the heuristic
+        :param all_pos: pos for the plot if need
+        :param w:  the world object for the plot if need
+        """
+        # add virtula point
+        all_pos = [(0, 0)] + all_pos
         plt.figure()
-        arcos_activos = [e for e in all_cell_location if best_x[e].solution_value > 0.9]
+
+        # get win edge
+        arcos_activos = [e for e in all_location if self.x[e].solution_value > 0.9]
+
+        # color edge and citis
         for i, j in arcos_activos:
             if type(i) == int and type(j) == int:
-                plt.plot([for_plot[i][1] + 0.5, for_plot[j][1] + 0.5], [for_plot[i][0] + 0.5, for_plot[j][0] + 0.5],
-                         color='r', alpha=0.6, linewidth=2, marker='o')
+                plt.plot([all_pos[i][1] + 0.5, all_pos[j][1] + 0.5], [all_pos[i][0] + 0.5, all_pos[j][0] + 0.5],
+                         color='b', alpha=0.6, linewidth=2, marker='o')
             elif type(i) == int:
-                plt.plot([for_plot[i][1] + 0.5, j[1] + 0.5], [for_plot[i][0] + 0.5, j[0] + 0.5], color='r', alpha=0.6,
+                plt.plot([all_pos[i][1] + 0.5, j[1] + 0.5], [all_pos[i][0] + 0.5, j[0] + 0.5], color='b', alpha=0.6,
                          linewidth=2, marker='o')
             elif type(j) == int:
-                plt.plot([i[1] + 0.5, for_plot[j][1] + 0.5], [i[0] + 0.5, for_plot[j][0] + 0.5], color='r', alpha=0.6,
+                plt.plot([i[1] + 0.5, all_pos[j][1] + 0.5], [i[0] + 0.5, all_pos[j][0] + 0.5], color='b', alpha=0.6,
                          linewidth=2, marker='o')
             else:
-                plt.plot([i[1] + 0.5, j[1] + 0.5], [i[0] + 0.5, j[0] + 0.5], color='r', alpha=0.6, linewidth=2,
+                plt.plot([i[1] + 0.5, j[1] + 0.5], [i[0] + 0.5, j[0] + 0.5], color='b', alpha=0.6, linewidth=2,
                          marker='o')
+        # write indexes
+        for i, j in all_pos:
+            plt.annotate(f'{i, j}', xy=(j + 1, i + 0.5), color='w', weight='bold')
 
-        # for i, j in for_plot:
-        #     plt.annotate(f'{i, j}', xy=(j + 1, i + 0.5), color='k', weight='bold')
+        # plot the rest of the data
+        Utils.print_serch_status(w, node, 0, 0, 0, False, pivot)
 
-        # Utils.print_pivot(w, p)
-        # plt.show()
+
+# use if for the clpex for the non optimal solution
+class OptimaltyError(Exception):
+    def __init__(self):
+        self.message = "!!! NOT A OPTIMAL SOLUTION !!!"
+
+    def __str__(self):
+        return self.message

@@ -1,5 +1,5 @@
 import numpy as np
-from script.utils import Node, Utils, FloydWarshall, lp_mtsp
+from script.utils import Node, Utils, FloydWarshall, LpMtsp
 from script.world import WorldMap
 import pickle
 import matplotlib.pyplot as plt
@@ -108,7 +108,7 @@ class Mwrp:
                     **distance_pivot_pivot}
 
         # Initializes the CPLEX object
-        self.lp_model = lp_mtsp(self.number_of_agent, self.pivot, all_dist)
+        self.lp_model = LpMtsp(self.number_of_agent, self.pivot, all_dist)
 
         # List of pivot that lower the heuristic
         self.pivot_black_list = self.get_pivot_black_list(start_node)
@@ -244,43 +244,6 @@ class Mwrp:
                 return pivot
 
         return pivot
-
-    # def find_index_insert_to_open(self, new_node: Node) -> int:
-    #     """
-    #     find the index in open list for the new_node with binry search
-    #     :param new_node: node that need to insert to open lest
-    #     :return: the inset index in open list
-    #     """
-    #     # search lb
-    #     index_a = 0
-    #
-    #     # search hb
-    #     index_b = len(self.open_list)
-    #
-    #     # binry search
-    #     while index_a < index_b:
-    #         mid = (index_a + index_b) // 2
-    #         data = self.open_list[mid]
-    #         index_up=new_node.__cmp__(data,self.minimize)
-    #         if index_up == False:
-    #             index_b = mid
-    #         else:
-    #             index_a = mid + 1
-    #     return index_a
-
-    # def replace_in_heap(self, old_node, new_node):
-    #
-    #     index_in_heap=self.open_list.index(old_node)
-
-    #     # Replace in_closed with new_node in open
-    #     parent_index = (index_in_heap - 1) >> 1
-    #     while index_in_heap != 0:
-    #         self.open_list[parent_index], self.open_list[index_in_heap] = \
-    #             (self.open_list[index_in_heap],self.open_list[parent_index],)
-    #         index_in_heap = parent_index
-    #         parent_index = (index_in_heap - 1) >> 1
-    #     # in_closed is now at 0
-    #     heapq.heapreplace(self.open_list, new_node)
 
     def insert_to_open_and_cunt(self, new_node: Node) -> None:
         """
@@ -498,13 +461,10 @@ class Mwrp:
         # join all dictionaries
         all_distance_dict = {**distance_out_start, **distance_in_pivot, **distance_agent_pivot, **distance_pivot_pivot}
 
-
         if self.minimize == 0:
-            mtsp_cost = self.lp_model.get_makespan(all_pos, self.world, pivot, self.genrate_node, citys,
-                                                   all_distance_dict, new_node.cost)
+            mtsp_cost = self.lp_model.get_mksp(all_distance_dict,pivot,new_node,all_pos,self.world)
         elif self.minimize == 1:
-            mtsp_cost = self.lp_model.get_soc(all_pos, self.world, pivot, self.genrate_node, citys, all_distance_dict,
-                                              new_node.cost)
+            mtsp_cost = self.lp_model.get_soc(all_distance_dict,pivot,new_node,all_pos,self.world)
         else:
             print('no minimais')
         #Utils.print_serch_status(self.world,new_node,self.start_time,0,0,False)
@@ -774,7 +734,6 @@ if __name__ == '__main__':
 
     row_map = Utils.convert_map(map_config)
 
-    LOS = 4 + 1
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
@@ -814,7 +773,7 @@ if __name__ == '__main__':
                     for start_pos in all_start_config_as_tupel:
                         for huristic in huristics_exp:
                             if exp_index >= start_in:
-                                world = WorldMap(np.array(row_map), LOS)
-                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['mksp'])
+                                world = WorldMap(np.array(row_map))
+                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['soc'])
                                 mwrp.run(writer, map_config, start_pos, remove_obs)
                             bar()
