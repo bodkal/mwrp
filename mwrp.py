@@ -75,8 +75,7 @@ class Mwrp:
 
         # open sort from top to bottom (best down)
         self.open_list = [start_node]
-
-        #heapq.heapify(self.open_list)
+        heapq.heapify(self.open_list)
 
         # open and close list
         self.visit_list_dic = {tuple(sorted(start_pos)): [start_node]}
@@ -536,7 +535,7 @@ class Mwrp:
 
             # get frontire for spsific agent (find whit BFS)
             if index not in old_state.dead_agent:
-                all_frontire.append(self.world.BFS.get_frontire(agent_location, old_state.unseen))
+                all_frontire.append(self.world.BFS.get_frontier(agent_location, old_state.unseen))
             else:
                 all_frontire.append([agent_location])
 
