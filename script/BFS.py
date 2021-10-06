@@ -4,7 +4,6 @@ class Node:
         self.location = location
         self.cost = cost
 
-
     def __str__(self):
         return f'location = {self.location} \t cost = {self.cost}'
 

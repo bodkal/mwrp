@@ -61,7 +61,7 @@ class Mwrp:
         # set which contains all the free cell on the map
         unseen_all = set(map(tuple, np.transpose(np.where(self.world.grid_map == 0))))
 
-        self.centrality_dict = self.centrality_list_wachers(unseen_all)
+        self.centrality_dict = self.centrality_list_watchers(unseen_all)
 
         pivot = self.get_pivot(unseen_all)
         #start_pos=tuple(list(pivot.keys())[:self.number_of_agent])
@@ -83,13 +83,13 @@ class Mwrp:
 
 
         # Arranges the centrality_dict according to a given function and filters what you see from the starting point
-        self.centrality_dict = self.centrality_list_wachers(unseen_start)
+        self.centrality_dict = self.centrality_list_watchers(unseen_start)
         #Utils.print_serch_status(self.world,start_node,self.start_time,0,0,False)
         # Pre-calculate suspicious points that will be PIVOT to save time during the run
         self.pivot = self.get_pivot(unseen_start)
 
 
-        self.old_pivot = {tuple(sorted((i, j))): self.get_closest_wachers(i, j) for i in self.pivot.keys()
+        self.old_pivot = {tuple(sorted((i, j))): self.get_closest_watchers(i, j) for i in self.pivot.keys()
                           for j in self.pivot.keys() if i != j}
 
         # limit the number of pivot
@@ -98,7 +98,7 @@ class Mwrp:
         # Calculate all the distances between the PIVOT to calculate heuristics The goal is to try to understand if
         # there are PIVOT points that lower the value of the heuristics and filter them
         # TODO  not the best method requires improvement
-        distance_pivot_pivot = {(i, j): self.get_closest_wachers(i, j) for j in self.pivot.keys()
+        distance_pivot_pivot = {(i, j): self.get_closest_watchers(i, j) for j in self.pivot.keys()
                                 for i in self.pivot.keys() if i != j}
         distance_in_pivot = {(i, 0): 0 for i in list(self.pivot.keys()) + list(range(1, self.number_of_agent + 1))}
         distance_agent_pivot = {(i, j): 0 for j in self.pivot for i in range(1, self.number_of_agent + 1)}
@@ -169,9 +169,9 @@ class Mwrp:
 
         return set(pivot_black_list)
 
-    def centrality_list_wachers(self, unseen: set) -> dict:
+    def centrality_list_watchers(self, unseen: set) -> dict:
         """
-        sort the unseen based on the each cell centrality wachers , number of wachers and cell centrality higher it is the better
+        sort the unseen based on the each cell centrality watchers , number of watchers and cell centrality higher it is the better
         :param unseen: the unseen set of a node
         :return: Dictionary of each cell centrality
         """
@@ -180,15 +180,15 @@ class Mwrp:
         # Goes through every cell in unseen and And calculates its centrality
         for index, cell in enumerate(unseen):
 
-            # sum all the cell wachers centrality
-            centrality_value=sum(self.centrality_dict[cell_whacers] for cell_whacers in self.world.dict_wachers[cell])
+            # sum all the cell watchers centrality
+            centrality_value=sum(self.centrality_dict[cell_whacers] for cell_whacers in self.world.dict_watchers[cell])
 
             # calculate all cells centrality
-            centrality_dict[cell] = centrality_value / (self.world.dict_wachers[cell].__len__() ** 2) * self.centrality_dict[cell]
+            centrality_dict[cell] = centrality_value / (self.world.dict_watchers[cell].__len__() ** 2) * self.centrality_dict[cell]
 
         return centrality_dict
 
-    def get_centrality_list_wachers(self, unseen: set) -> list:
+    def get_centrality_list_watchers(self, unseen: set) -> list:
         """
         returt sorted list by centrality sort from the bottom up
         :param unseen: the unseen set of a node
@@ -200,15 +200,15 @@ class Mwrp:
 
         return list_sort_by_centrality
 
-    def get_min_list_wachers(self, unseen: set) -> list:
+    def get_min_list_watchers(self, unseen: set) -> list:
         """
              returt sorted list by centrality sort from the bottom up
              :param unseen: the unseen set of a node
-             :return: sorted list of each cell number wachers
+             :return: sorted list of each cell number watchers
              """
 
-        # create sorted list of each cell number wachers based on unseen
-        list_sort_by_centrality = sorted([(len(self.world.dict_wachers[cell]), cell) for cell in unseen],reverse=True)
+        # create sorted list of each cell number watchers based on unseen
+        list_sort_by_centrality = sorted([(len(self.world.dict_watchers[cell]), cell) for cell in unseen],reverse=True)
         return list_sort_by_centrality
 
     def get_pivot(self, unseen: set) -> dict:
@@ -221,23 +221,23 @@ class Mwrp:
         pivot = dict()
         remove_from_unseen_set = set()
 
-        # get unseen list arranged according to the centrality of the wachers  (from experiments works better)
-        sort_unseen = self.get_centrality_list_wachers(unseen)
+        # get unseen list arranged according to the centrality of the watchers  (from experiments works better)
+        sort_unseen = self.get_centrality_list_watchers(unseen)
 
-        # get unseen list arranged according to the smallest number of wachers
-        # sort_unseen = self.get_min_list_wachers(unseen)
+        # get unseen list arranged according to the smallest number of watchers
+        # sort_unseen = self.get_min_list_watchers(unseen)
 
-        # Finds the pivot points and keeps their wachers disjoint for the gdls graph
+        # Finds the pivot points and keeps their watchers disjoint for the gdls graph
         while sort_unseen.__len__():
 
             cell = sort_unseen.pop()
 
-            # Checks if the cell is ok and is not disjoint with pivot wachers that already selected
-            if not self.world.dict_wachers[cell[1]].intersection(remove_from_unseen_set):
-                pivot[cell[1]] = self.world.dict_wachers[cell[1]]
+            # Checks if the cell is ok and is not disjoint with pivot watchers that already selected
+            if not self.world.dict_watchers[cell[1]].intersection(remove_from_unseen_set):
+                pivot[cell[1]] = self.world.dict_watchers[cell[1]]
 
-                # set() which contains all the pivot wachers that already selected (used to test the disjoint)
-                remove_from_unseen_set = remove_from_unseen_set | self.world.dict_wachers[cell[1]] | {cell[1]}
+                # set() which contains all the pivot watchers that already selected (used to test the disjoint)
+                remove_from_unseen_set = remove_from_unseen_set | self.world.dict_watchers[cell[1]] | {cell[1]}
 
             if pivot.__len__() == self.max_pivot:
                 return pivot
@@ -332,16 +332,16 @@ class Mwrp:
         return self.real_dis_dic[key]
 
     # TODO  serch only fronter no need to cach all wacers
-    def get_closest_wachers(self, cell_a: tuple, cell_b: tuple) -> int:
+    def get_closest_watchers(self, cell_a: tuple, cell_b: tuple) -> int:
         """
-        get the closest wachers between 2 cells
+        get the closest watchers between 2 cells
         :param cell_a: cell a = (x1,y1)
         :param cell_b:  cell b = (x2,y2)
-        :return: real distance between the two cell  closest wachers
+        :return: real distance between the two cell  closest watchers
         """
         min_dis = 100000
-        # iterat on all pairs of wachers that both cells have
-        for t, k in itertools.product(*(self.world.dict_wachers[cell_b], self.world.dict_wachers[cell_a])):
+        # iterat on all pairs of watchers that both cells have
+        for t, k in itertools.product(*(self.world.dict_watchers[cell_b], self.world.dict_watchers[cell_a])):
             sort_k_t = tuple(sorted((k, t)))
             if self.real_dis_dic[sort_k_t] < min_dis:
                 min_dis = self.real_dis_dic[sort_k_t]
@@ -363,8 +363,8 @@ class Mwrp:
             # Initialize a big number so that the heuristic is sure to be smaller than it
             min_dis = 1000000
 
-            # Go through each of the cells wachers and look for the one that closest to one of the agents
-            for whach in self.world.dict_wachers[cell]:
+            # Go through each of the cells watchers and look for the one that closest to one of the agents
+            for whach in self.world.dict_watchers[cell]:
 
                 if min_dis < max_pivot_dist:
                     break
@@ -382,12 +382,12 @@ class Mwrp:
 
                     real_dis = cost + h
 
-                    # Holds the value of the nearest wachers to one of the agent
+                    # Holds the value of the nearest watchers to one of the agent
                     if min_dis >= real_dis:
                         tmp_max_h_dis = h
                         min_dis = real_dis
 
-            # Holds the value of the farthest cell With the nearest wachers to one of the agent
+            # Holds the value of the farthest cell With the nearest watchers to one of the agent
             if max_pivot_dist <= min_dis:
                 max_h_dis = tmp_max_h_dis
                 max_pivot_dist = min_dis
@@ -436,7 +436,7 @@ class Mwrp:
                 if i - 1 not in new_node.dead_agent:
                     distance_agent_pivot[(i, all_pos[j - 1])] = min(
                                                                 [self.real_dis_dic[tuple(sorted((all_pos[i - 1], k)))]
-                                                                 for k in self.world.dict_wachers[all_pos[j - 1]]])
+                                                                 for k in self.world.dict_watchers[all_pos[j - 1]]])
 
         # bild the dict of the pivot pivot distance
         distance_pivot_pivot = dict()
@@ -447,7 +447,7 @@ class Mwrp:
                     if sort_pivot in self.old_pivot:
                         distance_pivot_pivot[(all_pos[i - 1], all_pos[j - 1])] = self.old_pivot[sort_pivot]
                     else:
-                        distance_pivot_pivot[(all_pos[i - 1], all_pos[j - 1])] = self.get_closest_wachers(
+                        distance_pivot_pivot[(all_pos[i - 1], all_pos[j - 1])] = self.get_closest_watchers(
                             all_pos[i - 1], all_pos[j - 1])
                         self.old_pivot[sort_pivot] = distance_pivot_pivot[(all_pos[i - 1], all_pos[j - 1])]
 
@@ -690,7 +690,6 @@ class Mwrp:
                                  [0] * self.number_of_agent])
                 return
 
-        # TODO  get fall path not only jump point
         all_path = self.get_path(goal_node, print_path=False,need_path=False)
 
         if self.genrate_node > 0:

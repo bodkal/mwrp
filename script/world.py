@@ -17,11 +17,11 @@ class WorldMap:
         self.vision = Vision(self.grid_map)
         [self.col_max, self.row_max] = self.grid_map.shape
         self.free_cell = len((np.where(self.grid_map == 0)[0]))
-        self.dict_wachers = dict()
+        self.dict_watchers = dict()
         self.dict_fov = dict()
-        self.create_wachers()
+        self.create_watchers()
         self.action = self.get_static_action_5(1)
-
+        self.watchers_frontier = dict()
         # BFS metod for expending border
         self.BFS = BFS(self)
 
@@ -94,7 +94,6 @@ class WorldMap:
         all_obstical = [i for i in np.transpose(np.where(np.array(self.grid_map) == 1))
                         if not np.any(i == 0) and i[0] != self.col_max - 1 and i[1] != self.row_max - 1]
 
-
         while number_of_obstical_to_remove > 0 and all_obstical.__len__() > 0:
             random_obstical = all_obstical.pop(random.randrange(len(all_obstical)))
             actihon = self.get_static_action_4(1) + random_obstical
@@ -114,8 +113,20 @@ class WorldMap:
 
         return self.grid_map
 
+    def get_free_cell(self, cell: tuple) -> set:
+        """
+        get all free cells around specific cell
+        :param cell: specific cell
+        :return: list of free cells
+        """
+
+        free_cells = {tuple((tmp[0] + cell[0], tmp[1] + cell[1])) for tmp in self.get_static_action_4(1) if
+                      self.grid_map[tmp[0] + cell[0], tmp[1] + cell[1]] == 0}
+
+        return free_cells
+
     # TODO add frontire
-    def create_wachers(self) -> None:
+    def create_watchers(self) -> None:
         """
         creat all watchers for all cells
         """
@@ -127,10 +138,17 @@ class WorldMap:
             # run an all fov and create the wochers from it
             for wahers in self.dict_fov[cell]:
                 if wahers != cell:
-                    if wahers in self.dict_wachers:
-                        self.dict_wachers[wahers] = self.dict_wachers[wahers].union(Utils.map_to_sets(cell))
+                    if wahers in self.dict_watchers:
+                        self.dict_watchers[wahers] = self.dict_watchers[wahers].union(Utils.map_to_sets(cell))
                     else:
-                        self.dict_wachers[wahers] = Utils.map_to_sets(cell)
+                        self.dict_watchers[wahers] = Utils.map_to_sets(cell)
+
+        # find all watchers frontier
+        self.watchers_frontier = {cell: set() for cell in self.dict_watchers}
+        for cell in self.dict_watchers.keys():
+            for watchers in self.dict_watchers[cell]:
+                if self.get_free_cell(watchers) - self.dict_watchers[cell] - {cell} != set():
+                    self.watchers_frontier[cell].add(watchers)
 
     def get_all_seen(self, state: tuple) -> set:
         """

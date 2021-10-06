@@ -1,0 +1,2 @@
+map_name,start_state,time,h type,h_start,h_genarate,h_expend,number of max pivot,use black list,genarate,expend,open is beter,new is beter,obs remove,cost
+./config/maze_11_11_config.csv,"((1, 10), (1, 1), (11, 10))",3.1898648738861084,laze max,0,34.36166158536585,33.15885947046843,5,0,2624,491,226,74,0,"[1, 9, 26]"
