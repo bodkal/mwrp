@@ -144,7 +144,13 @@ class WorldMap:
         return tmp_set_seen
 
     def is_valid_node(self, new_state: object, old_state: object, moving_status: list) -> bool:
-
+        """
+        find if cell is valid need only whit no eb
+        :param new_state:
+        :param old_state:
+        :param moving_status:
+        :return:
+        """
         if not self.is_obstical(new_state):
             return False
         elif new_state == old_state.parent.location:

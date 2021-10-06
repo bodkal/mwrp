@@ -188,7 +188,7 @@ class Utils:
 class Node:
 
     def __init__(self, parent: object, location: tuple, unseen: set, dead_agent: list,
-                 cost: list, minimize: bool, f: int = 0) -> object:
+                 cost: list,sorted_index : dict, minimize: bool, f: int = 0) -> object:
         """
         :param parent: the parent node (this node are genarate from parent node)
         :param location: hold the robots location tupel((x1,y1),(x2,y2),...)
@@ -207,12 +207,15 @@ class Node:
         self.dead_agent = dead_agent
         self.first_genarate = False
         self.cost_map = self._cost_map()
-
+        self.sorted_index=sorted_index
         # lode the cost for the __lt__ baste on the minimize
         if minimize == 0:
             self.get_cost = self.get_max_cost
         else:
             self.get_cost = self.get_sum_cost
+
+    def __str__(self):
+        return str(f"location = {self.location}\t cost = {self.cost}\tsorted_index = {self.sorted_index}\t f = {self.f}\tdead_agent = {self.dead_agent}")
 
     def get_max_cost(self, node: object) -> int:
         """
@@ -283,6 +286,12 @@ class Node:
         else:
             return True
 
+    def get_sorted_location(self, location):
+        if self.parent.parent is None:
+            return tuple(location[i] for i in self.sorted_index)
+        else:
+            location = self.parent.get_sorted_location(location)
+            return tuple(location[i] for i in self.sorted_index)
 
 class Vision:
     def __init__(self, grid_map: list):
@@ -453,7 +462,7 @@ class LpMtsp:
             raise OptimaltyError
 
         # print the resolt on nice plot
-        self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
+        # self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
 
         max_u = solucion.get_objective_value()
 

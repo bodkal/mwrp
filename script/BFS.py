@@ -1,11 +1,12 @@
-class node:
+class Node:
     def __init__(self, location: tuple, cost: int, parent: object) -> None:
         self.parent = parent
         self.location = location
         self.cost = cost
 
+
     def __str__(self):
-        print(f'location = {self.location} \t cost = {self.cost}')
+        return f'location = {self.location} \t cost = {self.cost}'
 
     def __lt__(self, other: object) -> bool:
         """
@@ -33,7 +34,7 @@ class BFS:
         # need to find all frontier
         self.frontier = {}
 
-    def get_index_binary_search(self, new_node: object) -> int:
+    def _get_index_binary_search(self, new_node: object) -> int:
         """
         find the index in the open list using binary search bast on node cost
         :param new_node: the node we want to find his index in the open list
@@ -51,15 +52,15 @@ class BFS:
                 index_a = mid + 1
         return index_a
 
-    def insert_to_open_list(self, new_node: object) -> None:
+    def _insert_to_open_list(self, new_node: object) -> None:
         """
         insert to open list and visibal dict, open sort bottom up (best in bottom)
         :param new_node: new node
         """
         self.visit_node[new_node.location] = new_node.parent
-        self.open_list.insert(self.get_index_binary_search(new_node), new_node)
+        self.open_list.insert(self._get_index_binary_search(new_node), new_node)
 
-    def get_all_action(self, old_node: object) -> list:
+    def _get_all_action(self, old_node: object) -> list:
         """
         return all valid cell around parent for generate new nods
         :param old_node: parent node
@@ -71,7 +72,7 @@ class BFS:
 
         return valid_state
 
-    def pop_from_open_list(self) -> object:
+    def _pop_from_open_list(self) -> object:
         """
         if open lest is not empty return node from bottem else return 0 (finis search)
         :rtype: object
@@ -81,21 +82,37 @@ class BFS:
         else:
             return 0
 
-    def expend(self) -> None:
+    def _expend_frontier_search(self) -> None:
         """
         expend new node
         """
-        old_node = self.pop_from_open_list()
+        old_node = self._pop_from_open_list()
         from time import time
         # run over all action and generate all children
-        for action in self.get_all_action(old_node):
+        for action in self._get_all_action(old_node):
             if action not in self.visit_node:
                 if self.world.dict_fov[action] & self.unseen == set():
                     # dident see any new cell
-                    self.insert_to_open_list(node(action, old_node.cost + 1, old_node))
+                    self._insert_to_open_list(Node(action, old_node.cost + 1, old_node))
                 else:
                     # see new cell
                     self.frontier.append(action)
+
+    def _expend_path_search(self,goal) -> object:
+        """
+        expend new node
+        """
+        old_node = self._pop_from_open_list()
+
+        # goal test
+        if old_node.location == goal:
+            return old_node
+
+        # run over all action and generate all children
+        for action in self._get_all_action(old_node):
+            if action not in self.visit_node.keys():
+                self._insert_to_open_list(Node(action, old_node.cost + 1, old_node))
+        return False
 
     def get_frontier(self, start: tuple, unseen: set) -> list:
         """
@@ -106,12 +123,37 @@ class BFS:
         """
         self.unseen = unseen
         self.start = start
-        self.open_list = [node(self.start, 0, None)]
+        self.open_list = [Node(self.start, 0, None)]
 
         self.frontier = [start]
         self.visit_node = {self.start: None}
 
         while self.open_list.__len__() > 0:
-            self.expend()
+            self._expend_frontier_search()
 
         return self.frontier
+
+    def get_path(self,start: tuple , goal : tuple )-> list :
+        """
+          get sorted path between 2 cell
+          :param start: start cell
+          :param goal: goal cell
+          :return: list of all path [(x1,y1),(x2,y2),...]
+          """
+        node=False
+        self.start = start
+        self.open_list = [(Node(start,0,None))]
+        self.visit_node = {self.start: None}
+
+        while node == False:
+            node = self._expend_path_search(goal)
+
+        all_path=[]
+        # get nodes from goal to root
+        while node.parent != None:
+            all_path.append(node.location)
+            node=node.parent
+
+        # return revers array because need path from root to goal
+        return all_path[::-1]
+

@@ -70,8 +70,8 @@ class Mwrp:
         unseen_start = unseen_all - self.world.get_all_seen(start_pos)
 
         # Produces the initial NODE
-        start_node = Node(Node(None, start_pos, [0] * self.number_of_agent, 0, [0] * start_pos.__len__(),self.minimize), start_pos,
-                          unseen_start, [], [0] * start_pos.__len__(),self.minimize)
+        start_node = Node(Node(None, start_pos, [0] * self.number_of_agent, 0, [0] * start_pos.__len__(),{0:0},self.minimize), start_pos,
+                          unseen_start, [], [0] * start_pos.__len__(),{i:i for i in range(start_pos.__len__())},self.minimize)
 
         # open sort from top to bottom (best down)
         self.open_list = [start_node]
@@ -593,7 +593,7 @@ class Mwrp:
                 seen_state = old_state.unseen - self.world.get_all_seen(sorted_new_state)
 
                 new_node = Node(old_state, sorted_new_state, seen_state, dead_list,
-                                self.get_cost(new_state, old_state, sorted_indexing),self.minimize)
+                                self.get_cost(new_state, old_state, sorted_indexing),sorted_indexing,self.minimize)
 
                 if self.huristic_index == 3:
                     self.insert_to_open_list_lazy_max(new_node)
@@ -691,7 +691,7 @@ class Mwrp:
                 return
 
         # TODO  get fall path not only jump point
-        # all_path = self.get_path(goal_node, print_path=True)
+        all_path = self.get_path(goal_node, print_path=False,need_path=False)
 
         if self.genrate_node > 0:
             h_gen = self.H_genrate / self.genrate_node
@@ -705,25 +705,46 @@ class Mwrp:
                          h_gen, h_exp, self.max_pivot, 0, self.genrate_node, self.expend_node,
                          self.open_is_beter, self.new_is_beter, obs_remove, goal_node.cost])
 
-    # get all node on the optimal path . Still need to find the waypoints because of the jumps
-    def get_path(self, gole_node, print_path):
-        all_path = [gole_node]
-        node = gole_node
+    def get_path(self, gole_node: Node, need_path: bool = True, print_path: bool = False) -> dict:
+        """
+        #fix sorted unsycronic location and get all node on the optimal path between jump points
 
-        # parent.parent to prevent crashes when reaching the root of the tree
-        while node.parent.parent is not None:
-            if print_path:
-                print(node.location, '\t', node.cost, '\t', node.f, '\t', self.expend_node)
-            node = node.parent
-            all_path.append(node)
-        # Returns the inverted trajectory so that the starting point is the list head
-        return all_path[::-1]
+        :param gole_node: the goal node
+        :param need_path: flag if need the path if true calculate pate
+        :param print_path: flag if nead to print the path
+        :return: dict that hold all path one for each agent (not the same length)
+        """
+
+        if need_path:
+            all_jump_points = []
+            node = gole_node
+
+            # geting all jump points
+            while node.parent is not None:
+                if print_path:
+                    print(node)
+                # fix usicronic sort (the agent jumps between paths)
+                all_jump_points.append(node.get_sorted_location(node.location))
+                node = node.parent
+
+            # reverse point because need path from start to goal
+            all_jump_points=all_jump_points[::-1]
+            dict_all_path={i : [all_jump_points[0][i]] for i in range(self.number_of_agent)}
+
+            # get all point on path by using BFS method
+            for index in range(1,all_jump_points.__len__()):
+                for i in range(self.number_of_agent):
+                    dict_all_path[i].extend(self.world.BFS.get_path(all_jump_points[index-1][i],all_jump_points[index][i]))
+            return dict_all_path
+        return {}
+
 
 
 if __name__ == '__main__':
     map_type = 'maze_11_11'
     name = 'test'
-    # run from consuall
+
+    # run from consul
     # if sys.argv:
     #    # huristics_exp = [int(sys.argv[1])]
     #     loop_number_of_agent = [int(sys.argv[1])]
