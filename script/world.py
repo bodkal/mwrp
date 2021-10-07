@@ -19,9 +19,9 @@ class WorldMap:
         self.free_cell = len((np.where(self.grid_map == 0)[0]))
         self.dict_watchers = dict()
         self.dict_fov = dict()
+        self.watchers_frontier = dict()
         self.create_watchers()
         self.action = self.get_static_action_5(1)
-        self.watchers_frontier = dict()
         # BFS metod for expending border
         self.BFS = BFS(self)
 
@@ -141,7 +141,7 @@ class WorldMap:
                     if wahers in self.dict_watchers:
                         self.dict_watchers[wahers] = self.dict_watchers[wahers].union(Utils.map_to_sets(cell))
                     else:
-                        self.dict_watchers[wahers] = Utils.map_to_sets(cell)
+                        self.dict_watchers[wahers] = Utils.map_to_sets(cell) | {wahers}
 
         # find all watchers frontier
         self.watchers_frontier = {cell: set() for cell in self.dict_watchers}

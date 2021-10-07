@@ -331,7 +331,6 @@ class Mwrp:
         key = tuple(sorted((cell_a, cell_b)))
         return self.real_dis_dic[key]
 
-    # TODO  serch only fronter no need to cach all wacers
     def get_closest_watchers(self, cell_a: tuple, cell_b: tuple) -> int:
         """
         get the closest watchers between 2 cells
@@ -341,7 +340,7 @@ class Mwrp:
         """
         min_dis = 100000
         # iterat on all pairs of watchers that both cells have
-        for t, k in itertools.product(*(self.world.dict_watchers[cell_b], self.world.dict_watchers[cell_a])):
+        for t, k in itertools.product(*(self.world.watchers_frontier[cell_b], self.world.watchers_frontier[cell_a])):
             sort_k_t = tuple(sorted((k, t)))
             if self.real_dis_dic[sort_k_t] < min_dis:
                 min_dis = self.real_dis_dic[sort_k_t]
@@ -364,7 +363,7 @@ class Mwrp:
             min_dis = 1000000
 
             # Go through each of the cells watchers and look for the one that closest to one of the agents
-            for whach in self.world.dict_watchers[cell]:
+            for whach in self.world.watchers_frontier[cell]:
 
                 if min_dis < max_pivot_dist:
                     break
@@ -756,9 +755,9 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 1
+    exp_number = 10
 
-    loop_number_of_agent = [3]
+    loop_number_of_agent = [2,3,4]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
