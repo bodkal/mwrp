@@ -135,19 +135,19 @@ class Utils:
             plt.show()
 
     @staticmethod
-    def print_fov(grid_map: list, all_cell: tuple, main_cell: tuple) -> None:
+    def print_fov(world: object, all_cell: tuple) -> None:
         """
         print the fov of a spsefic cell
-        :param grid_map: the map
-        :param all_cell:
-        :param main_cell:
+        :param grid_map: the world object
+        :param all_cell: all cells
         """
-        tmp = np.copy(grid_map)
+        tmp = np.copy(world.grid_map)
 
         for cell in all_cell:
-            if not tmp[cell] == 2:
-                tmp[cell] = 3
-            tmp[main_cell] = 2
+            for i in world.vision.get_fov(cell):
+                tmp[i] = 3
+        for cell in all_cell:
+            tmp[cell] = 2
 
         plt.pcolormesh(tmp, edgecolors='black', linewidth=0.01)
         plt.gca().set_aspect('equal')
@@ -180,15 +180,15 @@ class Utils:
         :param list_a:
         :return: sorted list , sorted index as dict
         """
-        sorted_list_a = sorted(list_a)
+        #sorted_list_a = sorted(list_a)
         sort_dick = {data: i for i, data in enumerate(sorted(range(len(list_a)), key=list_a.__getitem__))}
-        return tuple(sorted_list_a), sort_dick
+        return sort_dick
 
 
 class Node:
 
     def __init__(self, parent: object, location: tuple, unseen: set, dead_agent: list,
-                 cost: list,sorted_index : dict, minimize: bool, f: int = 0) -> object:
+                 cost: list, minimize: bool, f: int = 0) -> object:
         """
         :param parent: the parent node (this node are genarate from parent node)
         :param location: hold the robots location tupel((x1,y1),(x2,y2),...)
@@ -207,7 +207,6 @@ class Node:
         self.dead_agent = dead_agent
         self.first_genarate = False
         self.cost_map = self._cost_map()
-        self.sorted_index=sorted_index
         # lode the cost for the __lt__ baste on the minimize
         if minimize == 0:
             self.get_cost = self.get_max_cost
@@ -215,7 +214,7 @@ class Node:
             self.get_cost = self.get_sum_cost
 
     def __str__(self):
-        return str(f"location = {self.location}\t cost = {self.cost}\tsorted_index = {self.sorted_index}\t f = {self.f}\tdead_agent = {self.dead_agent}")
+        return str(f"location = {self.location}\t cost = {self.cost}\t f = {self.f}\tdead_agent = {self.dead_agent}")
 
     def get_max_cost(self, node: object) -> int:
         """
@@ -286,12 +285,29 @@ class Node:
         else:
             return True
 
-    def get_sorted_location(self, location):
+    def get_sorted_location1(self, location):
         if self.parent.parent is None:
             return tuple(location[i] for i in self.sorted_index)
         else:
             location = self.parent.get_sorted_location(location)
             return tuple(location[i] for i in self.sorted_index)
+
+    def get_sorted_location(self, cost):
+        if self.parent.parent is not None:
+           # print(location,sorted(location))
+            cost = self.parent.get_sorted_location(tuple(cost[i] for i in self.sorted_index))
+        return cost
+
+    def get_sorted_location2(self,object):
+        if self.parent.parent is None:
+            return
+        else:
+            self.parent.get_sorted_location(object)
+            cost_list={}
+            for k in self.location:
+                cost_list[k] = [object.get_real_dis(i,k) for i in self.parent.location]
+
+            return self.location
 
 class Vision:
     def __init__(self, grid_map: list):

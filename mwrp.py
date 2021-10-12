@@ -17,7 +17,7 @@ import sys
 
 class Mwrp:
 
-    def __init__(self, world: WorldMap, start_pos: tuple, huristic_index: int, max_pivot: int, map_name: str, minimize: int) -> None:
+    def __init__(self, world: WorldMap, start_pos: tuple, huristic_index: int, map_name: str, minimize: int, max_pivot : int = 5 ) -> None:
         """
         :param world:           An WorldMap  object from script.world that contains the parameters of the world
         :param start_pos:       The starting position of the agents as tupel . For example for two agents : ((1,1),(4,6))
@@ -494,6 +494,7 @@ class Mwrp:
         return closest_pivot_dist
 
     def get_cost(self, new_state: Node, old_state: Node, sort_indexing: dict) -> list:
+
         """
         get the cost for the new node sorted by hes new indexing
         :param new_state:  node that need to get hes new cost
@@ -540,7 +541,7 @@ class Mwrp:
 
         return all_frontire
 
-    def get_dead_list(self, old_state: Node, new_state: Node, sort_indexing: list) -> list:
+    def get_dead_list(self, old_state: Node, new_state: Node) -> list:
         """
         retarn the new dead list for the new node
         :param old_state: parent node
@@ -554,15 +555,13 @@ class Mwrp:
             if new_state[i] == old_state.location[i] and i not in dead_list:
                 dead_list.append(i)
 
-        dead_list = [sort_indexing[i] for i in dead_list]
-
         return dead_list
 
     def expend(self):
         # Returns the best valued node currently in the open list
         old_state = self.pop_open_list()
         if self.huristic_index == 3:
-            if old_state.first_genarate == False:
+            if not old_state.first_genarate:
                 mtsp = self.mtsp_heuristic(old_state)
                 old_state.first_genarate = True
                 if mtsp >= old_state.f:
@@ -582,17 +581,17 @@ class Mwrp:
             # There is no need to generate a situation similar to the father
             if new_state != old_state.location:
 
-                # Rearranges agents and price (from largest to smallest) to maintain anonymity
-                sorted_new_state, sorted_indexing = Utils.sort_list(new_state)
+                # # Rearranges agents and price (from largest to smallest) to maintain anonymity
+                # sorted_new_state, sorted_indexing = Utils.sort_list(new_state)
 
                 # Gets the list that holds the dead agents
-                dead_list = self.get_dead_list(old_state, new_state, sorted_indexing)
+                dead_list = self.get_dead_list(old_state, new_state)
 
                 # Calculates the unseen list for the new node
-                seen_state = old_state.unseen - self.world.get_all_seen(sorted_new_state)
+                seen_state = old_state.unseen - self.world.get_all_seen(new_state)
 
-                new_node = Node(old_state, sorted_new_state, seen_state, dead_list,
-                                self.get_cost(new_state, old_state, sorted_indexing),sorted_indexing,self.minimize)
+                new_node = Node(old_state, new_state, seen_state, dead_list,
+                                self.get_cost(new_state, old_state, {i :i  for i in range(3)}),self.minimize)
 
                 if self.huristic_index == 3:
                     self.insert_to_open_list_lazy_max(new_node)
@@ -622,11 +621,12 @@ class Mwrp:
                 # Checks the cost of each cell individually and only if the cost of each cell in the same trend
                 # (all high or all low) then it determines who is better in terms of cost
                 for index, new_cell in enumerate(new_node.cost_map.keys()):
-                    if cost_win == -5:
-                        break
+
 
                     # A loop that passes through all the agents stnding in a particular cell (can be more than 1 such)
                     for i in range(new_node.cost_map[new_cell].__len__()):
+                        if cost_win == -5:
+                            break
                         if new_node.cost_map[new_cell][i] >= old_node.cost_map[new_cell][i] and cost_win >= 0:
                             # new_node is beter
                             cost_win = 1
@@ -661,7 +661,7 @@ class Mwrp:
 
         return True
 
-    def run(self, writer: csv , map_config: str, start_pos: tuple, obs_remove: int) -> None:
+    def run(self, writer: csv , map_config: str, start_pos: tuple,need_path=False, obs_remove: int = 0) -> None:
         """
         run the algorithm and return if finds solution or 5 minutes limit
         :param writer: the csv file holder
@@ -689,7 +689,7 @@ class Mwrp:
                                  [0] * self.number_of_agent])
                 return
 
-        all_path = self.get_path(goal_node, print_path=False,need_path=False)
+        all_path = self.get_path(goal_node,need_path)
 
         if self.genrate_node > 0:
             h_gen = self.H_genrate / self.genrate_node
@@ -702,6 +702,8 @@ class Mwrp:
         writer.writerow([map_config, start_pos, time() - self.start_time, h_type[self.huristic_index], self.H_start,
                          h_gen, h_exp, self.max_pivot, 0, self.genrate_node, self.expend_node,
                          self.open_is_beter, self.new_is_beter, obs_remove, goal_node.cost])
+
+        return all_path
 
     def get_path(self, gole_node: Node, need_path: bool = True, print_path: bool = False) -> dict:
         """
@@ -716,23 +718,24 @@ class Mwrp:
         if need_path:
             all_jump_points = []
             node = gole_node
-
             # geting all jump points
             while node.parent is not None:
-                if print_path:
+                if not print_path:
                     print(node)
+
                 # fix usicronic sort (the agent jumps between paths)
-                all_jump_points.append(node.get_sorted_location(node.location))
+                all_jump_points.append(node.location)
                 node = node.parent
 
             # reverse point because need path from start to goal
             all_jump_points=all_jump_points[::-1]
-            dict_all_path={i : [all_jump_points[0][i]] for i in range(self.number_of_agent)}
 
             # get all point on path by using BFS method
+            dict_all_path={i : [all_jump_points[0][i]] for i in range(self.number_of_agent)}
             for index in range(1,all_jump_points.__len__()):
                 for i in range(self.number_of_agent):
                     dict_all_path[i].extend(self.world.BFS.get_path(all_jump_points[index-1][i],all_jump_points[index][i]))
+
             return dict_all_path
         return {}
 
@@ -755,9 +758,9 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 10
+    exp_number = 1
 
-    loop_number_of_agent = [2,3,4]
+    loop_number_of_agent = [3]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
@@ -792,6 +795,6 @@ if __name__ == '__main__':
                         for huristic in huristics_exp:
                             if exp_index >= start_in:
                                 world = WorldMap(np.array(row_map))
-                                mwrp = Mwrp(world, start_pos, huristic, max_pivot, map_type, minimize['soc'])
+                                mwrp = Mwrp(world, start_pos, huristic, map_type, minimize['mksp'],max_pivot)
                                 mwrp.run(writer, map_config, start_pos, remove_obs)
                             bar()
