@@ -70,8 +70,7 @@ class Mwrp:
         unseen_start = unseen_all - self.world.get_all_seen(start_pos)
 
         # Produces the initial NODE
-        start_node = Node(Node(None, start_pos, [0] * self.number_of_agent, 0, [0] * start_pos.__len__(),{0:0},self.minimize), start_pos,
-                          unseen_start, [], [0] * start_pos.__len__(),{i:i for i in range(start_pos.__len__())},self.minimize)
+        start_node = Node(None,start_pos,unseen_start, [0] * start_pos.__len__(),self.minimize)
 
         # open sort from top to bottom (best down)
         self.open_list = [start_node]
@@ -79,8 +78,6 @@ class Mwrp:
 
         # open and close list
         self.visit_list_dic = {tuple(sorted(start_pos)): [start_node]}
-
-
 
         # Arranges the centrality_dict according to a given function and filters what you see from the starting point
         self.centrality_dict = self.centrality_list_watchers(unseen_start)
@@ -493,24 +490,16 @@ class Mwrp:
 
         return closest_pivot_dist
 
-    def get_cost(self, new_state: Node, old_state: Node, sort_indexing: dict) -> list:
-
+    def get_cost(self, new_state: Node, old_state: Node) -> list:
         """
         get the cost for the new node sorted by hes new indexing
         :param new_state:  node that need to get hes new cost
         :param old_state: new_state ferent
-        :param sort_indexing: list of the sort index (the cost inside list cant change do to the EF jumps)
         :return: cost for the new node
         """
 
-        # Returns the perent cost according to the index of the new node
-        old_cost = [old_state.cost[i] for i in sort_indexing]
-
-        # Returns the new cost according to the index of the new node
-        cost_from_acthon_not_sort = [self.get_real_dis(data, old_state.location[i]) for i, data in enumerate(new_state)]
-        cost_from_acthon = [cost_from_acthon_not_sort[i] for i in sort_indexing]
-
-        cost = list(map(add, cost_from_acthon, old_cost))
+        cost_from_acthon = [self.get_real_dis(data, old_state.location[i]) for i, data in enumerate(new_state)]
+        cost = list(map(add, cost_from_acthon, old_state.cost))
         return cost
 
     def in_open_or_close(self, state: tuple) -> bool:
@@ -541,21 +530,7 @@ class Mwrp:
 
         return all_frontire
 
-    def get_dead_list(self, old_state: Node, new_state: Node) -> list:
-        """
-        retarn the new dead list for the new node
-        :param old_state: parent node
-        :param new_state: new node
-        :param sort_indexing: sort indexing bitwin new node and parent node
-        :return: list of dead agent
-        """
 
-        dead_list = old_state.dead_agent[:]
-        for i in range(new_state.__len__()):
-            if new_state[i] == old_state.location[i] and i not in dead_list:
-                dead_list.append(i)
-
-        return dead_list
 
     def expend(self):
         # Returns the best valued node currently in the open list
@@ -585,13 +560,12 @@ class Mwrp:
                 # sorted_new_state, sorted_indexing = Utils.sort_list(new_state)
 
                 # Gets the list that holds the dead agents
-                dead_list = self.get_dead_list(old_state, new_state)
+                #dead_list = self.get_dead_list(old_state, new_state)
 
                 # Calculates the unseen list for the new node
                 seen_state = old_state.unseen - self.world.get_all_seen(new_state)
 
-                new_node = Node(old_state, new_state, seen_state, dead_list,
-                                self.get_cost(new_state, old_state, {i :i  for i in range(3)}),self.minimize)
+                new_node = Node(old_state, new_state, seen_state,self.get_cost(new_state, old_state),self.minimize)
 
                 if self.huristic_index == 3:
                     self.insert_to_open_list_lazy_max(new_node)

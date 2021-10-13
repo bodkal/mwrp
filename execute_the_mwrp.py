@@ -4,8 +4,9 @@ from script.world import WorldMap
 from mwrp import Mwrp
 import ast
 import pprint
-
+from time import  sleep
 import csv
+import random
 from alive_progress import alive_bar
 
 class ExecuteTheMwrp:
@@ -19,7 +20,50 @@ class ExecuteTheMwrp:
         self.minimize = minimize
         self.path = path
         self.world = world
+        self.step_index=-1
+        self.agents_location = {index : self.path[index][0] for index in self.path}
+        self.agents_seen = {index : set() for index in self.path}
+        self.all_seen = set()
+        self.didet_see= set()
 
+    def field_of_view_validation(self,cell):
+        field_of_view=self.world.dict_fov[cell]
+        for i in field_of_view:
+            if self.didet_see.__len__() < 1:
+                if random.randint(0,0) == 0 and i not in self.all_seen:
+                    self.didet_see.add(i)
+                    print(self.didet_see)
+                    field_of_view=field_of_view - {i}
+            else:
+                if i in self.didet_see:
+                    if random.randint(0,99) != 0:
+                        field_of_view = field_of_view - {i}
+        return field_of_view
+
+    def fix_unseen(self):
+        for i in self.agents_location:
+            if self.agents_location[i] in self.didet_see:
+                self.didet_see=self.didet_see-{self.agents_location[i]}
+
+    def move(self):
+        for i in range(self.agents_location.__len__()):
+            if self.step_index < self.path[i].__len__():
+                self.agents_location[i] = self.path[i][self.step_index]
+
+    def see(self):
+        for i in range(self.agents_location.__len__()):
+            tmp_seen = self.field_of_view_validation(self.agents_location[i])
+            self.agents_seen[i] = self.agents_seen[i] | tmp_seen | {self.agents_location[i]}
+            self.all_seen = self.all_seen | self.agents_seen[i]
+
+    def one_step(self,need_to_see=True):
+        self.step_index+=1
+        self.move()
+        self.fix_unseen()
+        self.see()
+
+        if need_to_see:
+            Utils.print_exexute(self.world,self.path,self.step_index,self.agents_seen)
 
 if __name__ == '__main__':
     map_type = 'maze_11_11'
@@ -52,9 +96,12 @@ if __name__ == '__main__':
     mwrp = Mwrp(world, start_pos[exp_index], huristics, map_type, minimize['mksp'])
     all_path = mwrp.run(writer, map_config, start_pos, need_path=True)
     execute=ExecuteTheMwrp(world,all_path,minimize['mksp'])
-    x=1
+    while execute.step_index+1<max([execute.path[i].__len__() for i in execute.path]):
+        execute.one_step()
+        sleep(0.1)
+    execute.one_step()
 
-
+    sleep(100)
     # TODO
     # go to fix strat wane you see
     # go see from the shorter cell

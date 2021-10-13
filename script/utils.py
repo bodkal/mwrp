@@ -155,6 +155,35 @@ class Utils:
         plt.show()
 
     @staticmethod
+    def print_exexute(world,loction,index,seen):
+        colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
+
+        tmp = np.copy(world.grid_map)*5
+        tmp=np.hstack((tmp,np.zeros((tmp.shape[0],1))))
+        for i in range(loction.__len__()):
+            for cell in seen[i]:
+                tmp[cell] = 4
+
+        # Paint the cell with the location of the agents
+        for i in range(loction.__len__()):
+            for step in range(index):
+                if loction[i].__len__()>step:
+                    tmp[loction[i][step]] = (i+1)
+                else:
+                    break
+
+        # Paint the cell with the pivot and ther whacers
+
+        cmap = c.ListedColormap([colors[i] for i in [0,5,3,0,4,6,1]])
+
+        plt.pcolormesh(tmp, cmap=cmap, edgecolors='black', linewidth=0.01)
+        plt.gca().set_aspect('equal')
+        plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
+        plt.draw()
+        plt.pause(0.001)
+        plt.clf()    # self.col_max,
+
+    @staticmethod
     def map_to_sets(cell: tuple) -> set:
         """
         convert all cell from tupel to set
@@ -173,22 +202,21 @@ class Utils:
             row_map = [[0 if cell == '.' else 1 for cell in row[:-1]] for row in txtfile.readlines()]
         return row_map
 
-    @staticmethod
-    def sort_list(list_a: list) -> tuple:
-        """
-        sort a list and retorn the sorted order and the sort list
-        :param list_a:
-        :return: sorted list , sorted index as dict
-        """
-        #sorted_list_a = sorted(list_a)
-        sort_dick = {data: i for i, data in enumerate(sorted(range(len(list_a)), key=list_a.__getitem__))}
-        return sort_dick
+    # @staticmethod
+    # def sort_list(list_a: list) -> tuple:
+    #     """
+    #     sort a list and retorn the sorted order and the sort list
+    #     :param list_a:
+    #     :return: sorted list , sorted index as dict
+    #     """
+    #     #sorted_list_a = sorted(list_a)
+    #     sort_dick = {data: i for i, data in enumerate(sorted(range(len(list_a)), key=list_a.__getitem__))}
+    #     return sort_dick
 
 
 class Node:
 
-    def __init__(self, parent: object, location: tuple, unseen: set, dead_agent: list,
-                 cost: list, minimize: bool, f: int = 0) -> object:
+    def __init__(self, parent: object, location: tuple, unseen: set , cost: list, minimize: bool, f: int = 0) -> object:
         """
         :param parent: the parent node (this node are genarate from parent node)
         :param location: hold the robots location tupel((x1,y1),(x2,y2),...)
@@ -204,9 +232,10 @@ class Node:
         self.unseen = unseen
         self.cost = cost  # can work only white the cost_map idn if worthe the hedic self._cost_map().values()
         self.f = f
-        self.dead_agent = dead_agent
         self.first_genarate = False
         self.cost_map = self._cost_map()
+        self.dead_agent = self.get_dead_list()
+
         # lode the cost for the __lt__ baste on the minimize
         if minimize == 0:
             self.get_cost = self.get_max_cost
@@ -285,29 +314,20 @@ class Node:
         else:
             return True
 
-    def get_sorted_location1(self, location):
-        if self.parent.parent is None:
-            return tuple(location[i] for i in self.sorted_index)
-        else:
-            location = self.parent.get_sorted_location(location)
-            return tuple(location[i] for i in self.sorted_index)
-
-    def get_sorted_location(self, cost):
-        if self.parent.parent is not None:
-           # print(location,sorted(location))
-            cost = self.parent.get_sorted_location(tuple(cost[i] for i in self.sorted_index))
-        return cost
-
-    def get_sorted_location2(self,object):
-        if self.parent.parent is None:
-            return
-        else:
-            self.parent.get_sorted_location(object)
-            cost_list={}
-            for k in self.location:
-                cost_list[k] = [object.get_real_dis(i,k) for i in self.parent.location]
-
-            return self.location
+    def get_dead_list(self) -> list:
+        """
+        retarn the new dead list for the new node
+        :param old_state: parent node
+        :param new_state: new node
+        :return: list of dead agent
+        """
+        if self.parent is not None:
+            dead_list = self.parent.dead_agent[:]
+            for i in range(self.location.__len__()):
+                if self.location[i] == self.parent.location[i] and i not in dead_list:
+                    dead_list.append(i)
+            return dead_list
+        return []
 
 class Vision:
     def __init__(self, grid_map: list):
