@@ -113,6 +113,42 @@ class BFS:
                 self._insert_to_open_list(Node(action, old_node.cost + 1, old_node))
         return False
 
+    def goal_test(self,old_node,goal):
+        # goal test
+        if old_node.location in goal:
+            node = old_node
+            path = []
+            # get nodes from goal to root
+            while node.parent != None:
+                path.append(node.location)
+                node = node.parent
+            path.append(node.location)
+            self.all_gols[(self.start, old_node.location)] = path
+            goal.remove(old_node.location)
+
+            if goal.__len__() == 0:
+                return True
+            else:
+                return False
+
+
+    def _expend_path_search_multipal_goal(self,goal) -> object:
+        """
+        expend new node
+        """
+        old_node = self._pop_from_open_list()
+        if self.goal_test(old_node,goal):
+            return True
+
+
+        # run over all action and generate all children
+        for action in self._get_all_action(old_node):
+            if action not in self.visit_node.keys():
+                self._insert_to_open_list(Node(action, old_node.cost + 1, old_node))
+
+
+        return False
+
     def get_frontier(self, start: tuple, unseen: set) -> list:
         """
         get all frontier cell (see new cells)
@@ -132,27 +168,46 @@ class BFS:
 
         return self.frontier
 
-    def get_path(self,start: tuple , goal : tuple )-> list :
+    def get_path(self, start: tuple, goal: tuple) -> list:
         """
           get sorted path between 2 cell
           :param start: start cell
           :param goal: goal cell
           :return: list of all path [(x1,y1),(x2,y2),...]
           """
-        node=False
+        node = False
         self.start = start
-        self.open_list = [(Node(start,0,None))]
+        self.open_list = [(Node(start, 0, None))]
         self.visit_node = {self.start: None}
 
         while node == False:
             node = self._expend_path_search(goal)
 
-        all_path=[]
+        all_path = []
         # get nodes from goal to root
         while node.parent != None:
             all_path.append(node.location)
-            node=node.parent
+            node = node.parent
 
         # return revers array because need path from root to goal
         return all_path[::-1]
 
+    def get_all_paths(self, start: tuple, goal: set) -> list:
+        """
+          get sorted path between 2 cell
+          :param start: start cell
+          :param goal: all goal cell ((x1,y1),(x2,y2),....)
+          :return: list of all path [(x1,y1),(x2,y2),...]
+          """
+
+        finis = False
+        self.start = start
+        self.open_list = [(Node(start, 0, None))]
+        self.visit_node = {self.start: None}
+        self.all_gols = {}
+
+        while not finis:
+            finis = self._expend_path_search_multipal_goal(goal)
+
+        # return revers array because need path from root to goal
+        return self.all_gols

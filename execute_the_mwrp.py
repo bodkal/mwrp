@@ -4,66 +4,101 @@ from script.world import WorldMap
 from mwrp import Mwrp
 import ast
 import pprint
-from time import  sleep
+from time import sleep
 import csv
 import random
 from alive_progress import alive_bar
 
+class agent:
+    def __init__(self,agent_id,start_location,path,world):
+        self.id=agent_id
+        self.path=path
+        self.location=start_location
+        self.seen=set()
+        self.didet_see=[]
+        self.step_index=-1
+        self.world=world
+
+    def move(self):
+        self.step_index += 1
+        if self.step_index < self.path.__len__():
+            self.location = self.path[self.step_index]
+
+    def see(self,all_seen):
+        self.seen = self.seen | {self.location} | self.fov_validation(all_seen)
+        return self.seen
+
+    def fov_validation(self,all_seen):
+        fov=self.world.dict_fov[self.location]
+        remove_from_fov=set()
+        for fov_cell in fov:
+            if fov_cell not in all_seen:
+                if self.didet_see.__len__() < 1 :
+                    # dident see a cell that need to see
+                    if random.randint(0, 10) == 0 :
+                        self.didet_see.append(fov_cell)
+                        print(f"agent {self.id} new need to see : {fov_cell}")
+                        remove_from_fov.add(fov_cell)
+                else:
+                    # see a cell that dident see in the past
+                    if fov_cell in self.didet_see:
+                        if random.randint(0, 50) == 0:
+                            print(f"remove from need to see by miracle: {fov_cell}")
+                            self.didet_see.remove(fov_cell)
+                        else:
+                            remove_from_fov.add(fov_cell)
+
+        return fov-remove_from_fov
+
+    def see_unseen_by_stend(self):
+        if self.location in self.didet_see:
+            self.didet_see.remove(self.location)
+            print(f"agent {self.id} remove from need to see by stend: {self.location}")
+
+    def fix_unseen_strate(self):
+        for i in self.didet_see:
+            tmp_path = self.world.BFS.get_path(self.path[self.didet_see[i]][self.step_index], self.didet_see[i])
+
 class ExecuteTheMwrp:
 
-    def __init__(self, world: WorldMap, path: dict ,minimize: int) -> None:
+    def __init__(self, world: WorldMap, path: dict, minimize: int) -> None:
         """
         :param world:           An WorldMap  object from script.world that contains the parameters of the world
         :param path:            all robot path sort as dict {0:(x1,y1),(x2,y2)... 1:(x1,y1),(x2,y2)... }
         :param minimize:        What we want to minimize (soc, mksp)
         """
         self.minimize = minimize
-        self.path = path
         self.world = world
-        self.step_index=-1
-        self.agents_location = {index : self.path[index][0] for index in self.path}
-        self.agents_seen = {index : set() for index in self.path}
+        self.step_index = -1
         self.all_seen = set()
-        self.didet_see= set()
+        self.all_agent=[agent(agent_index,path[agent_index][0],path[agent_index],world) for agent_index in range(path.__len__())]
 
-    def field_of_view_validation(self,cell):
-        field_of_view=self.world.dict_fov[cell]
-        for i in field_of_view:
-            if self.didet_see.__len__() < 1:
-                if random.randint(0,0) == 0 and i not in self.all_seen:
-                    self.didet_see.add(i)
-                    print(self.didet_see)
-                    field_of_view=field_of_view - {i}
-            else:
-                if i in self.didet_see:
-                    if random.randint(0,99) != 0:
-                        field_of_view = field_of_view - {i}
-        return field_of_view
-
-    def fix_unseen(self):
-        for i in self.agents_location:
-            if self.agents_location[i] in self.didet_see:
-                self.didet_see=self.didet_see-{self.agents_location[i]}
-
-    def move(self):
-        for i in range(self.agents_location.__len__()):
-            if self.step_index < self.path[i].__len__():
-                self.agents_location[i] = self.path[i][self.step_index]
-
-    def see(self):
-        for i in range(self.agents_location.__len__()):
-            tmp_seen = self.field_of_view_validation(self.agents_location[i])
-            self.agents_seen[i] = self.agents_seen[i] | tmp_seen | {self.agents_location[i]}
-            self.all_seen = self.all_seen | self.agents_seen[i]
-
-    def one_step(self,need_to_see=True):
-        self.step_index+=1
-        self.move()
-        self.fix_unseen()
-        self.see()
+    def one_step(self, need_to_see=True):
+        self.step_index += 1
+        for one_agent in self.all_agent:
+            one_agent.move()
+            self.all_seen= self.all_seen | one_agent.see(self.all_seen)
+            one_agent.see_unseen_by_stend()
 
         if need_to_see:
-            Utils.print_exexute(self.world,self.path,self.step_index,self.agents_seen)
+            Utils.print_exexute(self.world,self.all_agent)
+        # if self.didet_see.__len__() > 0:
+        #     return False
+        return True
+
+    def exaxute_path(self):
+        step_is_valid=True
+        #while step_is_valid:
+        for i in range(20):
+            step_is_valid = self.one_step()
+            sleep(0.1)
+        self.one_step()
+        return True
+
+    def run(self):
+        while not self.exaxute_path():
+            self.fix_unseen_strate()
+
 
 if __name__ == '__main__':
     map_type = 'maze_11_11'
@@ -76,14 +111,13 @@ if __name__ == '__main__':
 
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
-
     minimize = {'mksp': 0, 'soc': 1}
     number_of_agent = 3
     huristics = 3
 
     exp_index = 6
-    start_pos =  [ast.literal_eval(i) for i in np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
-                                                                                dtype=tuple, delimiter='\n')]
+    start_pos = [ast.literal_eval(i) for i in np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
+                                                         dtype=tuple, delimiter='\n')]
 
     data_file = open(f'{experement_name}_{number_of_agent}_agent_{huristics}_huristic.csv', 'w',
                      newline='\n')
@@ -95,11 +129,8 @@ if __name__ == '__main__':
     world = WorldMap(row_map)
     mwrp = Mwrp(world, start_pos[exp_index], huristics, map_type, minimize['mksp'])
     all_path = mwrp.run(writer, map_config, start_pos, need_path=True)
-    execute=ExecuteTheMwrp(world,all_path,minimize['mksp'])
-    while execute.step_index+1<max([execute.path[i].__len__() for i in execute.path]):
-        execute.one_step()
-        sleep(0.1)
-    execute.one_step()
+    execute = ExecuteTheMwrp(world, all_path, minimize['mksp'])
+    execute.run()
 
     sleep(100)
     # TODO
@@ -108,7 +139,6 @@ if __name__ == '__main__':
     # GO see and go back for shorter track
     # use cplex for geting path
     # solve wrp from start
-
 
     # with alive_bar(exp_index+1) as bar:
     #     for i in range(exp_index):
