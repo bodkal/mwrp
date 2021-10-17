@@ -29,14 +29,14 @@ class WorldMap:
 
         # Checks whether we have previously calculated the distance between all the cell on the map and the centrality
         try:
-            self.real_dis_dic = pickle.load(open(f"./config/world.real_dis_dic_{map_type}.p", "rb"))
-            self.centrality_dict = pickle.load(open(f"./config/world.centrality_dict_{map_type}.p", "rb"))
+            self.real_dis_dic = pickle.load(open(f"./config/real_dis_dic_{map_type}.p", "rb"))
+            self.centrality_dict = pickle.load(open(f"./config/centrality_dict_{map_type}.p", "rb"))
         except:
             # calculated the distance between all the cell on the map and the centrality and save to file
             print('start FloydWarshall')
             self.real_dis_dic, self.centrality_dict = FloydWarshall(self.grid_map).run()
-            pickle.dump(self.real_dis_dic, open(f"./config/world.real_dis_dic_{map_type}.p", "wb"))
-            pickle.dump(self.centrality_dict, open(f"./config/world.centrality_dict_{map_type}.p", "wb"))
+            pickle.dump(self.real_dis_dic, open(f"./config/real_dis_dic_{map_type}.p", "wb"))
+            pickle.dump(self.centrality_dict, open(f"./config/centrality_dict_{map_type}.p", "wb"))
             print('end FloydWarshall')
 
 
