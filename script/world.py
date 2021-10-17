@@ -1,19 +1,21 @@
 import numpy as np
 from itertools import product
-from script.utils import Vision, Utils
+from script.utils import Vision, Utils, FloydWarshall
 from script.BFS import BFS
+import pickle
 
 
 class WorldMap:
 
-    def __init__(self, row_map: list) -> None:
+    def __init__(self, map_type: str) -> None:
         """
         hold the world object
-        :param row_map: grid map 1 obtical 0 free
+        :param map_config: map type name
         """
+        map_config = f'./config/{map_type}_config.csv'
 
         # world parmeter
-        self.grid_map = row_map.astype(np.int8)
+        self.grid_map = np.array(Utils.convert_map(map_config)).astype(np.int8)
         self.vision = Vision(self.grid_map)
         [self.col_max, self.row_max] = self.grid_map.shape
         self.free_cell = len((np.where(self.grid_map == 0)[0]))
@@ -24,6 +26,20 @@ class WorldMap:
         self.action = self.get_static_action_5(1)
         # BFS metod for expending border
         self.BFS = BFS(self)
+
+        # Checks whether we have previously calculated the distance between all the cell on the map and the centrality
+        try:
+            self.real_dis_dic = pickle.load(open(f"./config/world.real_dis_dic_{map_type}.p", "rb"))
+            self.centrality_dict = pickle.load(open(f"./config/world.centrality_dict_{map_type}.p", "rb"))
+        except:
+            # calculated the distance between all the cell on the map and the centrality and save to file
+            print('start FloydWarshall')
+            self.real_dis_dic, self.centrality_dict = FloydWarshall(self.grid_map).run()
+            pickle.dump(self.real_dis_dic, open(f"./config/world.real_dis_dic_{map_type}.p", "wb"))
+            pickle.dump(self.centrality_dict, open(f"./config/world.centrality_dict_{map_type}.p", "wb"))
+            print('end FloydWarshall')
+
+
 
     def is_obstical(self, state: tuple) -> bool:
         """

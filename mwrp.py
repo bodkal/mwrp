@@ -1,7 +1,6 @@
 import numpy as np
-from script.utils import Node, Utils, FloydWarshall, LpMtsp
+from script.utils import Node, Utils, LpMtsp
 from script.world import WorldMap
-import pickle
 import matplotlib.pyplot as plt
 from operator import add
 import ast
@@ -17,7 +16,7 @@ import sys
 
 class Mwrp:
 
-    def __init__(self, world: WorldMap, start_pos: tuple, huristic_index: int, map_name: str, minimize: int, max_pivot : int = 5 ) -> None:
+    def __init__(self, world: WorldMap, start_pos: tuple, huristic_index: int, minimize: int, max_pivot : int = 5 ) -> None:
         """
         :param world:           An WorldMap  object from script.world that contains the parameters of the world
         :param start_pos:       The starting position of the agents as tupel . For example for two agents : ((1,1),(4,6))
@@ -43,25 +42,12 @@ class Mwrp:
         self.H_expend = 0
         self.open_is_beter = 0
         self.new_is_beter = 0
-        self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).run()
-
-        # Checks whether we have previously calculated the distance between all the cell on the map and the centrality
-        try:
-            self.real_dis_dic = pickle.load(open(f"config/real_dis_dic_{map_name}.p", "rb"))
-            self.centrality_dict = pickle.load(open(f"config/centrality_dict_{map_name}.p", "rb"))
-        except:
-            # calculated the distance between all the cell on the map and the centrality and save to file
-            print('start FloydWarshall')
-            self.real_dis_dic, self.centrality_dict = FloydWarshall(self.world.grid_map).run()
-            pickle.dump(self.real_dis_dic, open(f"config/real_dis_dic_{map_name}.p", "wb"))
-            pickle.dump(self.centrality_dict, open(f"config/centrality_dict_{map_name}.p", "wb"))
-            print('end FloydWarshall')
-
+        #self.world.real_dis_dic, self.world.centrality_dict = FloydWarshall(self.world.grid_map).run()
 
         # set which contains all the free cell on the map
         unseen_all = set(map(tuple, np.transpose(np.where(self.world.grid_map == 0))))
 
-        self.centrality_dict = self.centrality_list_watchers(unseen_all)
+        self.world.centrality_dict = self.centrality_list_watchers(unseen_all)
 
         pivot = self.get_pivot(unseen_all)
         #start_pos=tuple(list(pivot.keys())[:self.number_of_agent])
@@ -79,8 +65,8 @@ class Mwrp:
         # open and close list
         self.visit_list_dic = {tuple(sorted(start_pos)): [start_node]}
 
-        # Arranges the centrality_dict according to a given function and filters what you see from the starting point
-        self.centrality_dict = self.centrality_list_watchers(unseen_start)
+        # Arranges the world.centrality_dict according to a given function and filters what you see from the starting point
+        self.world.centrality_dict = self.centrality_list_watchers(unseen_start)
         #Utils.print_serch_status(self.world,start_node,self.start_time,0,0,False)
         # Pre-calculate suspicious points that will be PIVOT to save time during the run
         self.pivot = self.get_pivot(unseen_start)
@@ -138,7 +124,7 @@ class Mwrp:
         pivot_black_list = []
 
         # get all unseen cell sort by the centrality . lower is in the center
-        tmp_pivot_key_sorted = sorted([(self.centrality_dict[key], key) for key in self.pivot.keys()])
+        tmp_pivot_key_sorted = sorted([(self.world.centrality_dict[key], key) for key in self.pivot.keys()])
         tmp_pivot_key = [val[1] for val in tmp_pivot_key_sorted]
 
         # Runs on all PIVOT points and saves the points that cause the heuristics to go down until he
@@ -178,10 +164,10 @@ class Mwrp:
         for index, cell in enumerate(unseen):
 
             # sum all the cell watchers centrality
-            centrality_value=sum(self.centrality_dict[cell_whacers] for cell_whacers in self.world.dict_watchers[cell])
+            centrality_value=sum(self.world.centrality_dict[cell_whacers] for cell_whacers in self.world.dict_watchers[cell])
 
             # calculate all cells centrality
-            centrality_dict[cell] = centrality_value / (self.world.dict_watchers[cell].__len__() ** 2) * self.centrality_dict[cell]
+            centrality_dict[cell] = centrality_value / (self.world.dict_watchers[cell].__len__() ** 2) * self.world.centrality_dict[cell]
 
         return centrality_dict
 
@@ -193,7 +179,7 @@ class Mwrp:
         """
 
         # create sorted list of each cell centrality based on unseen
-        list_sort_by_centrality = sorted([(self.centrality_dict[cell], cell) for cell in unseen])
+        list_sort_by_centrality = sorted([(self.world.centrality_dict[cell], cell) for cell in unseen])
 
         return list_sort_by_centrality
 
@@ -326,7 +312,7 @@ class Mwrp:
         :return: real distance between two cell
         """
         key = tuple(sorted((cell_a, cell_b)))
-        return self.real_dis_dic[key]
+        return self.world.real_dis_dic[key]
 
     def get_closest_watchers(self, cell_a: tuple, cell_b: tuple) -> int:
         """
@@ -339,8 +325,8 @@ class Mwrp:
         # iterat on all pairs of watchers that both cells have
         for t, k in itertools.product(*(self.world.watchers_frontier[cell_b], self.world.watchers_frontier[cell_a])):
             sort_k_t = tuple(sorted((k, t)))
-            if self.real_dis_dic[sort_k_t] < min_dis:
-                min_dis = self.real_dis_dic[sort_k_t]
+            if self.world.real_dis_dic[sort_k_t] < min_dis:
+                min_dis = self.world.real_dis_dic[sort_k_t]
         return min_dis
 
     def singelton_heuristic(self, new_node: Node) -> int:
@@ -431,7 +417,7 @@ class Mwrp:
         for i, j in itertools.product(*(citys[1: self.number_of_agent + 1], citys[self.number_of_agent + 1:])):
                 if i - 1 not in new_node.dead_agent:
                     distance_agent_pivot[(i, all_pos[j - 1])] = min(
-                                                                [self.real_dis_dic[tuple(sorted((all_pos[i - 1], k)))]
+                                                                [self.world.real_dis_dic[tuple(sorted((all_pos[i - 1], k)))]
                                                                  for k in self.world.dict_watchers[all_pos[j - 1]]])
 
         # bild the dict of the pivot pivot distance

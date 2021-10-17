@@ -167,11 +167,9 @@ class Utils:
 
         # Paint the cell with the location of the agents
         for one_agent in all_agent:
-            for step in range(one_agent.step_index):
-                if one_agent.path.__len__()>step:
-                    tmp[one_agent.path[step]] = (one_agent.id+1)
-                else:
-                    break
+            for step in one_agent.path_for_plot:
+                tmp[step] = (one_agent.id+1)
+
 
         # Paint the cell with the pivot and ther whacers
 
@@ -184,6 +182,11 @@ class Utils:
         plt.draw()
         plt.pause(0.001)
         plt.clf()    # self.col_max,
+
+    @staticmethod
+    def get_key_from_value(my_dict,val):
+        key=list(my_dict.keys())[list(my_dict.values()).index(val)]
+        return key
 
     @staticmethod
     def map_to_sets(cell: tuple) -> set:
