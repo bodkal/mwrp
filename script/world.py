@@ -26,7 +26,6 @@ class WorldMap:
         self.action = self.get_static_action_5(1)
         # BFS metod for expending border
         self.BFS = BFS(self)
-
         # Checks whether we have previously calculated the distance between all the cell on the map and the centrality
         try:
             self.real_dis_dic = pickle.load(open(f"./config/real_dis_dic_{map_type}.p", "rb"))

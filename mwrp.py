@@ -607,12 +607,7 @@ class Mwrp:
             elif cost_win == -1 and new_node.unseen.issubset(old_node.unseen):
                 self.new_is_beter += 1
 
-               # self.replace_in_heap()
-                #old_node.cost = [-max(old_node.cost)] * self.number_of_agent
                 old_node.f = -old_node.f
-
-                #old_node.dead_agent=True
-                #old_node.valid_node=False
                 all_index.add(index)
 
         if all_index.__len__() > 0:
@@ -686,6 +681,7 @@ class Mwrp:
                 # fix usicronic sort (the agent jumps between paths)
                 all_jump_points.append(node.location)
                 node = node.parent
+            all_jump_points.append(node.location)
 
             # reverse point because need path from start to goal
             all_jump_points=all_jump_points[::-1]

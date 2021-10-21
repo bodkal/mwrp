@@ -167,8 +167,9 @@ class Utils:
 
         # Paint the cell with the location of the agents
         for one_agent in all_agent:
-            for step in one_agent.path_for_plot:
+            for step in one_agent.path[:one_agent.step_index+1]:
                 tmp[step] = (one_agent.id+1)
+            #tmp[one_agent.l] = (one_agent.id + 1)
 
 
         # Paint the cell with the pivot and ther whacers
