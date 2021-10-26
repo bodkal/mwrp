@@ -140,7 +140,6 @@ class WorldMap:
 
         return free_cells
 
-    # TODO add frontire
     def create_watchers(self) -> None:
         """
         creat all watchers for all cells
@@ -197,3 +196,9 @@ class WorldMap:
             if moving_status[i] != 0:
                 return False
         return True
+
+    def get_multy_fov(self,all_cells):
+        all_fov=set()
+        for cell in all_cells:
+            all_fov=all_fov | self.dict_fov[cell]
+        return all_fov
