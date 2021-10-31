@@ -683,6 +683,9 @@ class Mwrp:
                 node = node.parent
             all_jump_points.append(node.location)
 
+            if not print_path:
+                print(node)
+
             # reverse point because need path from start to goal
             all_jump_points=all_jump_points[::-1]
 
