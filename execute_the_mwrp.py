@@ -1,5 +1,5 @@
 import numpy as np
-from script.utils import Utils
+from script.utils import Node,Utils , PathGrath
 from script.world import WorldMap
 from mwrp import Mwrp
 import ast
@@ -10,10 +10,13 @@ import random
 from alive_progress import alive_bar
 
 
+
+
 class agent:
-    def __init__(self, agent_id, start_location, path, world):
+    def __init__(self, agent_id, start_location, path, mwrp):
         self.id = agent_id
         self.path = path[self.id]
+
         self.old_path = path[self.id]
         self.tmp_path = path[self.id]
 
@@ -26,32 +29,47 @@ class agent:
         self.is_finis = False
         self.fixing = False
 
-        self.world = world
+        self.mwrp = mwrp
         self.fixing_path = []
         self.path_for_plot = []
         self.old_dident_see = set()
         del path[self.id]
         self.all_otear_path = path
         self.all_dident_see = set()
-        # self.unseen={self.world.get_multy_fov(self.path)}
+        #self.graph = PathGrath(self.path)
 
     def move(self):
-        self.step_index += 1
-        if self.location == self.path[-1] and self.didet_see.__len__() == 0:
-            self.is_finis = True
-        else:
-            self.location = self.path[self.step_index]
-        self.see()
+        try:
+            self.step_index += 1
+            if self.location == self.path[-1] and self.didet_see.__len__() == 0:
+                self.is_finis = True
+            else:
+                self.location = self.path[self.step_index]
+            self.see()
+        except:
+            xxx=1
+
+        # else:
+        #     self.location = self.path[self.step_index]
+
+        # if self.graph.current.child[-1] is None and self.didet_see.__len__() == 0:
+        #     self.is_finis = True
+        # else:
+        #     self.graph.next_step()
+        #     self.location=self.graph.current.location
+        #     self.see()
 
         return self.seen
 
     def see(self):
         corrent_seen = self.fov_validation()
         self.seen = self.seen | {self.location} | corrent_seen
+
+        #self.seen1 = self.seen | {self.graph.current.location} | corrent_seen
         # self.unseen = self.unseen -  self.seen
 
     def fov_validation(self):
-        fov = self.world.dict_fov[self.location]
+        fov = self.mwrp.dict_fov[self.location]
 
         for fov_cell in fov:
             if fov_cell not in self.seen:
@@ -66,7 +84,8 @@ class agent:
                     if fov_cell in self.all_dident_see:
                         if random.randint(0, 50) == 0:
                             print(f"remove from need to see by miracle: {fov_cell}")
-                            del self.didet_see[fov_cell]
+                            if fov_cell in self.didet_see:
+                                del self.didet_see[fov_cell]
                             self.all_dident_see = self.all_dident_see - {fov_cell}
 
         seen_fov = fov - {cell for cell in self.all_dident_see}
@@ -82,7 +101,7 @@ class agent:
     def cell_to_fix_from_close(self, didet_see):
         all_dis = {didet_see: []}
         for path_cell in self.path[self.step_index:]:
-            all_dis[didet_see].append(self.world.real_dis_dic[tuple(sorted((path_cell, didet_see)))])
+            all_dis[didet_see].append(self.mwrp.real_dis_dic[tuple(sorted((path_cell, didet_see)))])
 
         if self.path[self.step_index:].__len__() != 0:
             insert_index = self.step_index + int(all_dis[didet_see].index(min(all_dis[didet_see])))
@@ -92,9 +111,9 @@ class agent:
         return min_dis
 
     def return_to_path(self, start):
-        tmp_dic = {goal: self.world.real_dis_dic[tuple(sorted((start, goal)))] for goal in self.path[self.step_index:]}
+        tmp_dic = {goal: self.mwrp.real_dis_dic[tuple(sorted((start, goal)))] for goal in self.path[self.step_index:]}
         minval = min(tmp_dic, key=tmp_dic.get)
-        fixing_path = self.world.BFS.get_path(start, minval)
+        fixing_path = self.mwrp.BFS.get_path(start, minval)
         for index , data in enumerate(self.path[self.step_index:]):
             if data in self.old_path:
                 break
@@ -102,13 +121,14 @@ class agent:
         self.path = self.path[:self.step_index] + fixing_path + self.path[index+self.step_index:]
 
     def go_to_cell(self, start, goal):
-        fixing_path = self.world.BFS.get_path(start, goal)
+        fixing_path = self.mwrp.BFS.get_path(start, goal)
         self.path = self.path[:self.step_index] + [self.location] + fixing_path + self.path[self.fixing_step_index:]
 
         print(f"agent {self.id} retarn to path from {start} to {goal}")
 
     def get_fixing_path(self, start, goal):
-        fixing_path = self.world.BFS.get_path(start, goal)
+        fixing_path = self.mwrp.BFS.get_path(start, goal)
+
         if self.step_index == 0:
             self.fixing_step_index = (fixing_path.__len__() * 2 - 1)
             self.path = self.path[:self.step_index] + fixing_path + fixing_path[::-1][1:] + self.path[self.step_index:]
@@ -120,20 +140,21 @@ class agent:
 
     def remove_from_dident_see(self, unseen):
         del self.didet_see[unseen]
-        # self.all_dident_see=self.all_dident_see-{unseen}
         self.seen = self.seen | {unseen}
 
     def get_close_cell(self, cell):
 
-        min_dis = (self.location, self.world.real_dis_dic[tuple(sorted((cell, self.location)))])
+        min_dis = (self.location, self.mwrp.real_dis_dic[tuple(sorted((cell, self.location)))])
         for path_cell in self.path[self.step_index + 1:]:
-            dis = self.world.real_dis_dic[tuple(sorted((cell, path_cell)))]
+            dis = self.mwrp.real_dis_dic[tuple(sorted((cell, path_cell)))]
             if dis < min_dis[1]:
                 min_dis = (path_cell, dis)
         return min_dis
 
     def update_dident_see(self):
-        self.didet_see = {cell: self.get_close_cell(cell)[0] for cell in self.didet_see if self.didet_see[cell] == 0}
+        for cell in self.didet_see:
+            if self.didet_see[cell] == 0:
+                self.didet_see[cell]=self.get_close_cell(cell)[0]
 
     def get_key(self,tmp_dir):
         return  list(tmp_dir.keys())[0]
@@ -144,9 +165,12 @@ class agent:
         all_path_to_cell = {}
         can_walk_on_path = 1
 
-        tmp_path_to_cell = {
-            i + self.step_index: [self.path[i + self.step_index]] + self.world.BFS.get_path(data, dident_see)
-            for i, data in enumerate(self.path[self.step_index:])}
+        if self.step_index<self.path.__len__():
+            tmp_path_to_cell = {
+                i + self.step_index: [self.path[i + self.step_index]] + self.mwrp.BFS.get_path(data, dident_see)
+                for i, data in enumerate(self.path[self.step_index:])}
+        else:
+            tmp_path_to_cell = {self.step_index : [self.path[-1]] + self.mwrp.BFS.get_path(self.path[-1], dident_see)}
 
         while all_path_to_cell.__len__() == 0:
             all_path_to_cell = {i: tmp_path_to_cell[i] for i in tmp_path_to_cell if
@@ -157,57 +181,61 @@ class agent:
                         for j in all_path_to_cell if i <= j}
         if (path_len, path_len) in tmp_all_path:
             tmp_all_path[(path_len, path_len)] = tmp_path_to_cell[path_len]
-        tmp_need_to_see = {cell: self.world.get_multy_fov(self.path[cell[0]:cell[1]]) for cell in tmp_all_path}
+        tmp_need_to_see = {cell: self.mwrp.get_multy_fov(self.path[cell[0]:cell[1]]) for cell in tmp_all_path}
 
         Optional_path = {i: tmp_all_path[i] for i in tmp_all_path if
-                         tmp_need_to_see[i].issubset(self.world.get_multy_fov(tmp_all_path[i]))}
+                         tmp_need_to_see[i].issubset(self.mwrp.get_multy_fov(tmp_all_path[i]))}
 
         return min(Optional_path.items(), key=lambda item: item[1].__len__() - (item[0][1] - item[0][0]))
 
-    def get_altrntive_from_tmp_path_through_cell(self,didet_see):
-        dident_see = self.get_key(didet_see)
-        path_len = self.tmp_path.__len__() - 1
-        all_path_to_cell = {}
-        can_walk_on_path = 1
-
-        tmp_path_to_cell = {
-            i + self.step_index: [self.tmp_path[i + self.step_index]] + self.world.BFS.get_path(data, dident_see)
-            for i, data in enumerate(self.tmp_path[self.step_index:])}
-
-        while all_path_to_cell.__len__() == 0:
-            all_path_to_cell = {i: tmp_path_to_cell[i] for i in tmp_path_to_cell if
-                                (set(tmp_path_to_cell[i]) & set(self.tmp_path)).__len__() == can_walk_on_path}
-            can_walk_on_path += 1
-
-        tmp_all_path = {(i, j): all_path_to_cell[i] + all_path_to_cell[j][::-1][1:] for i in all_path_to_cell
-                        for j in all_path_to_cell if i <= j}
-        if (path_len, path_len) in tmp_all_path:
-            tmp_all_path[(path_len, path_len)] = tmp_path_to_cell[path_len]
-        tmp_need_to_see = {cell: self.world.get_multy_fov(self.tmp_path[cell[0]:cell[1]]) for cell in tmp_all_path}
-
-        Optional_path = {i: tmp_all_path[i] for i in tmp_all_path if
-                         tmp_need_to_see[i].issubset(self.world.get_multy_fov(tmp_all_path[i]))}
-
-        return min(Optional_path.items(), key=lambda item: item[1].__len__() - (item[0][1] - item[0][0]))
+    # def get_altrntive_from_tmp_path_through_cell(self,didet_see):
+    #     dident_see = self.get_key(didet_see)
+    #     path_len = self.tmp_path.__len__() - 1
+    #     all_path_to_cell = {}
+    #     can_walk_on_path = 1
+    #
+    #     tmp_path_to_cell = {
+    #         i + self.step_index: [self.tmp_path[i + self.step_index]] + self.world.BFS.get_path(data, dident_see)
+    #         for i, data in enumerate(self.tmp_path[self.step_index:])}
+    #
+    #     while all_path_to_cell.__len__() == 0:
+    #         all_path_to_cell = {i: tmp_path_to_cell[i] for i in tmp_path_to_cell if
+    #                             (set(tmp_path_to_cell[i]) & set(self.tmp_path)).__len__() == can_walk_on_path}
+    #         can_walk_on_path += 1
+    #
+    #     tmp_all_path = {(i, j): all_path_to_cell[i] + all_path_to_cell[j][::-1][1:] for i in all_path_to_cell
+    #                     for j in all_path_to_cell if i <= j}
+    #     if (path_len, path_len) in tmp_all_path:
+    #         tmp_all_path[(path_len, path_len)] = tmp_path_to_cell[path_len]
+    #     tmp_need_to_see = {cell: self.world.get_multy_fov(self.tmp_path[cell[0]:cell[1]]) for cell in tmp_all_path}
+    #
+    #     Optional_path = {i: tmp_all_path[i] for i in tmp_all_path if
+    #                      tmp_need_to_see[i].issubset(self.world.get_multy_fov(tmp_all_path[i]))}
+    #
+    #     return min(Optional_path.items(), key=lambda item: item[1].__len__() - (item[0][1] - item[0][0]))
 
 class ExecuteTheMwrp:
 
-    def __init__(self, world: WorldMap, path: dict, fixing_metod: int, minimize: int) -> None:
+    def __init__(self, path: dict, fixing_metod: int, minimize: int,mwrp: object) -> None:
         """
         :param world:           An WorldMap  object from script.world that contains the parameters of the world
         :param path:            all robot path sort as dict {0:(x1,y1),(x2,y2)... 1:(x1,y1),(x2,y2)... }
         :param minimize:        What we want to minimize (soc, mksp)
         :param fixing_metod:    the metod for fixing if we dident see some cell
+        :param mwrp:            the path solver for the subotimal and optimal mtsp
+
         """
 
         self.minimize = minimize
-        self.world = world
+
         self.step_index = -1
         self.all_seen = set()
-        self.all_agent = [agent(agent_index, path[agent_index][0], path, world) for agent_index in
+        self.all_agent = [agent(agent_index, path[agent_index][0], path, mwrp) for agent_index in
                           range(path.__len__())]
         self.fix_path_asiment = {}
         self.fixing_metod = fixing_metod
+        self.mwrp=mwrp
+
 
     def fix_by_see_or_stend(self,agent):
         agent.see_unseen_by_stand(agent.location)
@@ -216,12 +244,13 @@ class ExecuteTheMwrp:
         return False
 
     def fix_mangment_solo_go_to_close(self, agent):
+        agent.update_dident_see()
+
         agent.see_unseen_by_stand(agent.location)
 
-        if agent.didet_see.__len__() > 0:
-            if agent.location in agent.didet_see.values():
-                key = Utils.get_key_from_value(agent.didet_see, agent.location)
-                agent.get_fixing_path(agent.location, key)
+        if agent.location in agent.didet_see.values():
+            key = Utils.get_key_from_value(agent.didet_see, agent.location)
+            agent.get_fixing_path(agent.location, key)
 
     def fix_mangment_solo_minimal_path(self, agent):
 
@@ -242,31 +271,35 @@ class ExecuteTheMwrp:
     def fix_mangment_multy_minimal_path(self, agent):
         need_fix = self.fix_by_see_or_stend(agent)
 
-        # if need_fix and agent.location not in agent.old_path and agent.didet_see not in agent.path[:agent.step_index]:
-        #     agent.go_to_cell(agent.location, agent.path[agent.fixing_step_index])
+        tmp_cell=0
+        for i in agent.all_dident_see:
+            if i in agent.path[agent.step_index:] and i not in agent.old_path:
+                tmp_cell=i
+
+        if agent.location != tmp_cell and tmp_cell != 0 and tmp_cell not in agent.didet_see:# not in agent.path[:agent.step_index]:
+            agent.go_to_cell(agent.location, agent.path[agent.fixing_step_index])
 
         tmp_dir={}
         if agent.didet_see.__len__() > 0 and 0 in agent.didet_see.values():
             for i in self.all_agent:
                 key, selected_path = i.get_altrntive_path_through_cell(agent.didet_see)
-                tmp_dir[key]=(i.id,i.path.__len__()-(key[1]-key[0])+selected_path.__len__(),selected_path)
-            in_and_out,data = min(tmp_dir.items() ,key=lambda item : item[1][1])
+                tmp_dir[i.id]=(key,i.path.__len__()-(key[1]-key[0])+selected_path.__len__(),selected_path)
+            _id,data = min(tmp_dir.items() ,key=lambda item : item[1][1])
 
-            self.all_agent[data[0]].path = self.all_agent[data[0]].path[:in_and_out[0]] + data[2] + self.all_agent[data[0]].path[in_and_out[1] + 1:]
+            self.all_agent[_id].path = self.all_agent[_id].path[:data[0][0]] + data[2] + self.all_agent[_id].path[data[0][1]+ 1:]
 
-            if data[0] != agent.id:
-                print(f"agent {agent.id} move {agent.didet_see.keys()} to agent {data[0]} - {[i[1] for i in tmp_dir.values()]}")
-                self.all_agent[data[0]].didet_see[agent.get_key(agent.didet_see)] = data[2][0]
+            if _id != agent.id:
+                print(f"agent {agent.id} move {agent.didet_see.keys()} to agent {_id} - {[i[1] for i in tmp_dir.values()]}")
+                self.all_agent[_id].didet_see[agent.get_key(agent.didet_see)] = data[2][0]
                 del agent.didet_see[agent.get_key(agent.didet_see)]
             else:
                 agent.didet_see[agent.get_key(agent.didet_see)]=data[2][0]
 
-            # if agent.location in agent.didet_see.values():
-            #     agent.path = agent.tmp_path
-
     def fix_mangment_multy_go_to_close(self, agent):
+        agent.update_dident_see()
 
         need_to_fix = self.fix_by_see_or_stend(agent)
+
         if need_to_fix and agent.fixing and agent.didet_see not in agent.path[:agent.step_index]:
             agent.go_to_cell(agent.location, agent.path[agent.fixing_step_index])
 
@@ -292,6 +325,46 @@ class ExecuteTheMwrp:
                 key = Utils.get_key_from_value(agent.didet_see, agent.location)
                 agent.get_fixing_path(agent.location, key)
 
+
+    def fix_mangment_solo_subopt_mtsp_path(self,agent):
+        need_fix = self.fix_by_see_or_stend(agent)
+
+        if agent.didet_see.__len__()>0 and list(agent.didet_see.keys())[0] not in agent.path[agent.step_index:]:
+            unseen=self.mwrp.get_multy_fov(agent.path[self.step_index:])-self.all_seen
+
+            new_node=Node(None,tuple(i.location for i in self.all_agent),unseen,[i.step_index for i in self.all_agent],1)
+            new_node.dead_agent=[i.id for i in self.all_agent if i.id is not agent.id]
+
+            need_fix_fov_cells=self.mwrp.clean_serch(new_node)
+            self.mwrp.remove_from_fov({i for i in agent.didet_see})
+            print("start calculate path")
+
+            new_path=self.mwrp.run(save_to_file=False,need_path=True)
+
+            agent.path[self.step_index:]=new_path[agent.id]
+            print(agent.path[self.step_index:],end=f"\t{agent.didet_see}\n")
+
+            #self.mwrp = Mwrp(new_node.location, 1, map_type)
+
+            #self.mwrp.remove_from_fov({i for i in agent.didet_see})
+
+            #new_path=self.mwrp.run(save_to_file=False, need_path=True)
+
+            print("finis calculate path")
+
+            #print(agent.path[self.step_index:])
+            #print([x[i] for i in x if x[i].__len__()>1])
+            bbb=1
+
+            # self.mwrp.minimize=1
+            # #all_distance_dict, all_pos =self.mwrp.get_all_distance_for_huristic(new_node,pivot)
+            # self.mwrp.mtsp_heuristic(new_node, pivot)
+            # #self.mwrp.lp_model.get_soc(all_distance_dict, pivot, new_node, all_pos, self.mwrp)
+            #
+            # a=self.mwrp.lp_model.get_subtoor(0,0)
+            # x=1
+
+
     def update_dident_see(self):
         tmp_all_dident_see = {list(agent.didet_see.keys())[0] for agent in self.all_agent if agent.didet_see.__len__() > 0}
         for agent in self.all_agent:
@@ -310,6 +383,7 @@ class ExecuteTheMwrp:
                 agent.remove_from_dident_see(unseen_cell)
                 print(f"agent {agent.id} remove by see: {unseen_cell}  locate at {agent.location}")
                 return True
+        return False
 
     def exaxute_path(self, need_to_see=True):
         while not min([agent.is_finis for agent in self.all_agent]):
@@ -326,20 +400,24 @@ class ExecuteTheMwrp:
                     self.fix_mangment_solo_minimal_path(one_agent)
                 elif self.fixing_metod == 3:
                     self.fix_mangment_multy_minimal_path(one_agent)
+                elif self.fixing_metod == 4:
+                    self.fix_mangment_solo_subopt_mtsp_path(one_agent)
 
 
             if need_to_see:
-                Utils.print_exexute(self.world, self.all_agent)
+                Utils.print_exexute(self.mwrp.grid_map, self.all_agent)
                 #print([self.step_index]+[i.location for i in self.all_agent])
+
                 print("\n")
                 for i in self.all_agent:
                     print(i.path[i.step_index:])
+                print(self.mwrp.free_cell[1]-self.all_seen)
                 print("\n")
 
 
-            sleep(0.1)
-        if self.world.free_cell != self.all_seen.__len__():
-            print(f"teory :{self.world.free_cell} \t realty :{self.all_seen.__len__()}")
+            sleep(0.2)
+        if self.mwrp.free_cell[0] != self.all_seen.__len__():
+            print(f"teory :{self.mwrp.free_cell[0]} \t realty :{self.mwrp.free_cell[1]-self.all_seen}")
         return True
 
 
@@ -367,19 +445,16 @@ if __name__ == '__main__':
          'use black list', 'genarate', 'expend', 'open is better', 'new is beter', 'obs remove', 'cost'])
 
     while True:
-        world = WorldMap(map_type)
+       # world = WorldMap(map_type)
         sp = start_pos[random.randint(0, 99)]
-        mwrp = Mwrp(world, sp, huristics, minimize['mksp'])
+        mwrp = Mwrp(sp, minimize['mksp'],map_type)
         all_path = mwrp.run(writer, map_type, start_pos, need_path=True)
         if all_path is not None:
-            execute = ExecuteTheMwrp(world, all_path, 3, minimize['mksp'])
+            execute = ExecuteTheMwrp(all_path, 4, minimize['mksp'],mwrp)
             execute.exaxute_path()
         else:
             print("no path fond")
         print(f"all costs - {[i.step_index for i in execute.all_agent]}")
         #input()
 
-    # TODO
-    # GO see and go back for shorter track
-    # use cplex for geting path
-    # solve wrp from start
+

@@ -94,7 +94,7 @@ class Utils:
         plt.rcParams["figure.figsize"] = (11, 7)
 
         # Paint the cell we have already seen
-        seen = set(world.dict_wachers.keys()) - node.unseen
+        seen = world.free_cell[1] - node.unseen
         for cell in seen:
             tmp[cell] = 3
 
@@ -107,7 +107,7 @@ class Utils:
             cmap = c.ListedColormap([colors[i] for i in [0, 1, -2, -1, 4, 3]])
 
             for cell in pivot:
-                for whacer in world.dict_wachers[cell]:
+                for whacer in world.dict_watchers[cell]:
                     tmp[whacer] = 4
             for cell in pivot:
                 tmp[cell] = 5
@@ -126,8 +126,8 @@ class Utils:
         plt.text(-4.8, 5, f'h - {[node.f - i for i in node.cost]}')
         plt.text(-4.8, 6, f'f - {node.f}')
         plt.text(-4.8, 7, f'terminate - {node.dead_agent}')
-        plt.text(-4.8, 8, f'coverge - {round(seen.__len__() / world.free_cell * 100, 3)} % ')
-        if move == True:
+        plt.text(-4.8, 8, f'coverge - {round(seen.__len__() / world.free_cell[0] * 100, 3)} % ')
+        if move != True:
             plt.draw()
             plt.pause(0.001)
             plt.clf()
@@ -155,11 +155,11 @@ class Utils:
         plt.show()
 
     @staticmethod
-    def print_exexute(world,all_agent):
+    def print_exexute(world, all_agent):
         colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
 
-        tmp = np.copy(world.grid_map)*5
-        tmp=np.hstack((tmp,np.zeros((tmp.shape[0],1))))
+        tmp = np.copy(world) * 5
+        tmp = np.hstack((tmp, np.zeros((tmp.shape[0], 1))))
 
         for one_agent in all_agent:
             for cell in one_agent.seen:
@@ -167,14 +167,12 @@ class Utils:
 
         # Paint the cell with the location of the agents
         for one_agent in all_agent:
-            for step in one_agent.path[:one_agent.step_index+1]:
-                tmp[step] = (one_agent.id+1)
-            #tmp[one_agent.l] = (one_agent.id + 1)
-
+            for step in one_agent.path[:one_agent.step_index + 1]:
+                tmp[step] = (one_agent.id + 1)
 
         # Paint the cell with the pivot and ther whacers
 
-        cmap = c.ListedColormap([colors[i] for i in [0,5,3,0,4,6,1]])
+        cmap = c.ListedColormap([colors[i] for i in [0, 5, 3, 0, 4, 6, 1]])
 
         plt.pcolormesh(tmp, cmap=cmap, edgecolors='black', linewidth=0.01)
         plt.gca().set_aspect('equal')
@@ -182,11 +180,11 @@ class Utils:
 
         plt.draw()
         plt.pause(0.001)
-        plt.clf()    # self.col_max,
+        plt.clf()  # self.col_max,
 
     @staticmethod
-    def get_key_from_value(my_dict,val):
-        key=list(my_dict.keys())[list(my_dict.values()).index(val)]
+    def get_key_from_value(my_dict, val):
+        key = list(my_dict.keys())[list(my_dict.values()).index(val)]
         return key
 
     @staticmethod
@@ -208,9 +206,92 @@ class Utils:
             row_map = [[0 if cell == '.' else 1 for cell in row[:-1]] for row in txtfile.readlines()]
         return row_map
 
+
+class PathNode:
+    def __init__(self, location, child ,perent = None):
+        self.location = location
+        self.child = [child]  # {0: child}
+        self.perent = perent
+
+    # self.next_step = 0
+
+    def _next(self):
+        try:
+            if self.child[-1] is not None:
+                chosen_child=self.child[-1]
+                self.child=self.child[::-1]
+
+                return chosen_child
+            return None
+        except:
+            x=1
+
+    def _prev(self):
+        if self.perent is not None:
+            return self.perent
+        return None
+
+
+class PathGrath:
+    def __init__(self, path):
+        path_graf = [PathNode(path[-1], None)]
+        for i in range(path.__len__() - 2, -1, -1):
+            path_graf.append(PathNode(path[i], path_graf[-1]))
+        for i in range(1, path.__len__()):
+            path_graf[i - 1].perent = path_graf[i]
+        path_graf = path_graf[::-1]
+
+        self.path = path_graf #{i.location: i for i in path_graf}
+
+        self.current = self.path[0]
+
+    def get_all_next_path(self, node):
+        path = []
+        while node.child[-1] != None:
+            path.append(node.location)
+            node = node.child[-1]
+        path.append(node.location)
+        return path
+
+    def get_all_peve_path(self):
+        path = []
+        node=self.current
+        while node.perent != None:
+            path.append(node.location)
+            node = node.perent
+        path.append(node.location)
+        return path
+
+    def next_step(self):
+        tmp = self.current._next()
+        if tmp != None:
+            self.current = tmp
+        return self.current
+
+    def insert_path(self,path):
+        into=self.current
+        out=self.current
+
+        while into.location is not path[-1]:
+            into = into.child[-1]
+        while out.location is not path[0]:
+            out = out.child[-1]
+
+        tmp_node=into
+
+        for cell in path[::-1][1:-1]:
+            self.path.append(PathNode(cell,child=tmp_node))
+            tmp_node=self.path[-1]
+
+        out.child.append(self.path[-1])
+
+        while out.child[-1] is not into:
+            out.child[-1].perent=out
+            out=out.child[-1]
+
 class Node:
 
-    def __init__(self, parent: object, location: tuple, unseen: set , cost: list, minimize: bool, f: int = 0) -> object:
+    def __init__(self, parent: object, location: tuple, unseen: set, cost: list, minimize: bool, f: int = 0) -> object:
         """
         :param parent: the parent node (this node are genarate from parent node)
         :param location: hold the robots location tupel((x1,y1),(x2,y2),...)
@@ -322,6 +403,7 @@ class Node:
                     dead_list.append(i)
             return dead_list
         return []
+
 
 class Vision:
     def __init__(self, grid_map: list):
@@ -468,7 +550,7 @@ class LpMtsp:
         for i in set(distance_dict.keys()) - set(self.x.keys()):
             self.x = {**self.mdl.binary_var_dict([i], lb=0, name='x'), **self.x}
 
-    def get_mksp(self, distance_dict: dict, pivot: dict, node: object, all_pos: list, world: object) -> int:
+    def get_mksp(self, distance_dict: dict, pivot: dict, node: object, all_pos: list, world: object,x=0) -> int:
         """
         calculate the mksp heuristic using a cplex method
         :param distance_dict: all edge cost
@@ -495,7 +577,7 @@ class LpMtsp:
         # self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
 
         max_u = solucion.get_objective_value()
-
+       # self.get_subtoor(0, 0)
         return max([round(max_u)] + node.cost)
 
     def get_soc(self, distance_dict: dict, pivot: dict, node: object, all_pos: list, world: object) -> int:
@@ -516,7 +598,7 @@ class LpMtsp:
 
         solucion = self.mdl.solve(log_output=False)
 
-        if 'optimal' not in self.mdl.solve_details.status:
+        if 'optimal' not in self.mdl.solve_details.status :
             self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
             raise OptimaltyError
 
@@ -592,6 +674,28 @@ class LpMtsp:
         # plot the rest of the data
         Utils.print_serch_status(w, node, 0, 0, 0, False, pivot)
 
+
+    def get_subtoor(self, all_cell_location, distance_dict):
+
+        all_subtoor=[]
+        all_agge= {e[0]: e[1] for e in  self.x  if self.x[e].solution_value > 0.9}
+        loop=0
+        while all_agge.__len__()>1:
+            loop+=1
+            all_subtoor.append([])
+            out=loop
+            into=-1
+            try:
+                while into != 0:
+                    into=all_agge[out]
+                    if into !=0:
+                        all_subtoor[-1].append(into)
+                    del all_agge[out]
+                    out=into
+            except:
+                x=1
+
+        return all_subtoor
 
 # use if for the clpex for the non optimal solution
 class OptimaltyError(Exception):

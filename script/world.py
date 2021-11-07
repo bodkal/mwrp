@@ -18,7 +18,7 @@ class WorldMap:
         self.grid_map = np.array(Utils.convert_map(map_config)).astype(np.int8)
         self.vision = Vision(self.grid_map)
         [self.col_max, self.row_max] = self.grid_map.shape
-        self.free_cell = len((np.where(self.grid_map == 0)[0]))
+        self.free_cell = (len((np.where(self.grid_map == 0)[0])),set(map(tuple,np.array(np.where(self.grid_map == 0)).T)))
         self.dict_watchers = dict()
         self.dict_fov = dict()
         self.watchers_frontier = dict()
@@ -39,6 +39,16 @@ class WorldMap:
             print('end FloydWarshall')
 
 
+    def remove_from_fov(self,cell):
+        tmp_cell=[]
+        for key in self.dict_fov:
+            if cell.issubset(self.dict_fov[key]) and cell != {key}:
+                self.dict_fov[key]=self.dict_fov[key]-cell
+                tmp_cell.append(key)
+        for key in self.dict_fov:
+            if cell.issubset(self.dict_fov[key]):
+                print(True)
+        return tmp_cell
 
     def is_obstical(self, state: tuple) -> bool:
         """
