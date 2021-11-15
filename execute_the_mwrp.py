@@ -347,7 +347,7 @@ class ExecuteTheMwrp:
 
             print("finis calculate path")
 
-    #TODO not finis need to continue 
+    #TODO not finis need to continue
     def fix_mangment_multy_close_wrp(self, agent):
         dident_see = list(agent.didet_see.keys())[0]
         close_cell = [i.get_close_cell(dident_see) for i in self.all_agent]
