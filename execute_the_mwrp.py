@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from script.utils import Node,Utils , PathGrath
 from script.world import WorldMap
@@ -276,7 +278,7 @@ class ExecuteTheMwrp:
             if i in agent.path[agent.step_index:] and i not in agent.old_path:
                 tmp_cell=i
 
-        if agent.location != tmp_cell and tmp_cell != 0 and tmp_cell not in agent.didet_see:# not in agent.path[:agent.step_index]:
+        if agent.location != tmp_cell and tmp_cell != 0 and tmp_cell not in agent.didet_see:
             agent.go_to_cell(agent.location, agent.path[agent.fixing_step_index])
 
         tmp_dir={}
@@ -325,8 +327,7 @@ class ExecuteTheMwrp:
                 key = Utils.get_key_from_value(agent.didet_see, agent.location)
                 agent.get_fixing_path(agent.location, key)
 
-
-    def fix_mangment_solo_subopt_mtsp_path(self,agent):
+    def fix_mangment_solo_singet_wrp(self,agent):
         need_fix = self.fix_by_see_or_stend(agent)
 
         if agent.didet_see.__len__()>0 and list(agent.didet_see.keys())[0] not in agent.path[agent.step_index:]:
@@ -344,26 +345,53 @@ class ExecuteTheMwrp:
             agent.path[self.step_index:]=new_path[agent.id]
             print(agent.path[self.step_index:],end=f"\t{agent.didet_see}\n")
 
-            #self.mwrp = Mwrp(new_node.location, 1, map_type)
-
-            #self.mwrp.remove_from_fov({i for i in agent.didet_see})
-
-            #new_path=self.mwrp.run(save_to_file=False, need_path=True)
-
             print("finis calculate path")
 
-            #print(agent.path[self.step_index:])
-            #print([x[i] for i in x if x[i].__len__()>1])
-            bbb=1
+    #TODO not finis need to continue 
+    def fix_mangment_multy_close_wrp(self, agent):
+        dident_see = list(agent.didet_see.keys())[0]
+        close_cell = [i.get_close_cell(dident_see) for i in self.all_agent]
+        close_cell_index = close_cell.index(
+            min([one_agent.get_close_cell(dident_see) for one_agent in self.all_agent], key=lambda x: x[1]))
 
-            # self.mwrp.minimize=1
-            # #all_distance_dict, all_pos =self.mwrp.get_all_distance_for_huristic(new_node,pivot)
-            # self.mwrp.mtsp_heuristic(new_node, pivot)
-            # #self.mwrp.lp_model.get_soc(all_distance_dict, pivot, new_node, all_pos, self.mwrp)
-            #
-            # a=self.mwrp.lp_model.get_subtoor(0,0)
-            # x=1
+    def fix_mangment_mwrp(self):
+        for one_agent in self.all_agent:
+            need_fix = self.fix_by_see_or_stend(one_agent)
 
+        for agent in self.all_agent:
+            if  agent.didet_see.__len__()>0 and 0 in  agent.didet_see.values():
+                need_fix=True
+                for i in agent.didet_see:
+                    agent.didet_see[i]=1
+
+        if need_fix:
+            unseen=set()
+
+            for one_agent in self.all_agent:
+                if one_agent.didet_see.__len__()>0 and list(one_agent.didet_see.keys())[0] in one_agent.path[one_agent.step_index:]:
+                    return
+
+            # for one_agent in self.all_agent:
+            #     unseen=unseen | self.mwrp.get_multy_fov(one_agent.path[one_agent.step_index:])
+
+            unseen = self.mwrp.free_cell[1] - self.all_seen
+
+            new_node = Node(None, tuple(i.location for i in self.all_agent), unseen,
+                            [i.step_index for i in self.all_agent], 1)
+
+            need_fix_fov_cells = self.mwrp.clean_serch(new_node)
+            for one_agent in self.all_agent:
+                self.mwrp.remove_from_fov({i for i in one_agent.didet_see})
+            print("start calculate path")
+
+            new_path = self.mwrp.run(save_to_file=False, need_path=True)
+
+            for i in range(self.all_agent.__len__()):
+                self.all_agent[i].path[self.all_agent[i].step_index:]=new_path[i]
+            agent.path[self.step_index:] = new_path[agent.id]
+            print(agent.path[self.step_index:], end=f"\t{agent.didet_see}\n")
+
+            print("finis calculate path")
 
     def update_dident_see(self):
         tmp_all_dident_see = {list(agent.didet_see.keys())[0] for agent in self.all_agent if agent.didet_see.__len__() > 0}
@@ -385,6 +413,7 @@ class ExecuteTheMwrp:
                 return True
         return False
 
+
     def exaxute_path(self, need_to_see=True):
         while not min([agent.is_finis for agent in self.all_agent]):
             self.one_step()
@@ -401,7 +430,11 @@ class ExecuteTheMwrp:
                 elif self.fixing_metod == 3:
                     self.fix_mangment_multy_minimal_path(one_agent)
                 elif self.fixing_metod == 4:
-                    self.fix_mangment_solo_subopt_mtsp_path(one_agent)
+                    self.fix_mangment_solo_singet_wrp(one_agent)
+
+            if self.fixing_metod == 5:
+                self.fix_mangment_mwrp()
+
 
 
             if need_to_see:

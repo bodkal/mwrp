@@ -45,9 +45,9 @@ class WorldMap:
             if cell.issubset(self.dict_fov[key]) and cell != {key}:
                 self.dict_fov[key]=self.dict_fov[key]-cell
                 tmp_cell.append(key)
-        for key in self.dict_fov:
-            if cell.issubset(self.dict_fov[key]):
-                print(True)
+        # for key in self.dict_fov:
+        #     if cell.issubset(self.dict_fov[key]):
+        #         print(True)
         return tmp_cell
 
     def is_obstical(self, state: tuple) -> bool:
