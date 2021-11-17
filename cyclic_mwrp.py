@@ -348,6 +348,11 @@ class Mwrp(WorldMap):
         :param new_node: node that need to calclate the hes heuristic
         :return: the h value for no eb and f value for eb
         """
+        if new_node.dead_agent.__len__()==self.number_of_agent:
+            if self.minimize == 0:
+                return max(new_node.cost)
+            else:
+                return sum(new_node.cost)
 
         # Holds the best pivot and heuristic value at any given time
         max_pivot_dist = 0
@@ -373,7 +378,7 @@ class Mwrp(WorldMap):
                     else:
                         cost = all_cost
 
-                    h = self.get_real_dis(agent, whach)
+                    h = self.get_real_dis(agent, whach) + self.get_real_dis(agent, self.start_pos[index])
 
                     real_dis = cost + h
 
@@ -421,8 +426,20 @@ class Mwrp(WorldMap):
                         all_pos[i - 1], all_pos[j - 1])
                     self.old_pivot[sort_pivot] = distance_pivot_pivot[(all_pos[i - 1], all_pos[j - 1])]
 
+
+
+        min_pivot_virtual_dis={}
+        for i in pivot.keys():
+                min_pivot_virtual_dis[i] = min([self.real_dis_dic[tuple(sorted((j, k)))] for k in self.dict_watchers[i] for j in self.start_pos])
+
+
         # bild the dict of the pivot virtual distance
-        distance_in_pivot = {(i, 0): 0 for i in list(pivot.keys()) + list(range(1, self.number_of_agent + 1))}
+        distance_in_pivot = {(i, 0):min_pivot_virtual_dis[i] for i  in pivot.keys()}
+
+        for i in range(1, self.number_of_agent + 1):
+            distance_in_pivot[(i, 0)] = 0
+
+
 
         # bild the dict of the virtual pivot distance
         distance_out_start = {(0, i): new_node.cost[i - 1] for i in range(1, self.number_of_agent + 1)}
@@ -437,6 +454,11 @@ class Mwrp(WorldMap):
         :param new_node: node that need to calclate the hes heuristic
         :return: the h value for no eb and f value for eb
         """
+        if new_node.dead_agent.__len__()==self.number_of_agent:
+            if self.minimize == 0:
+                return max(new_node.cost)
+            else:
+                return sum(new_node.cost)
 
         if not pivot:
             tmp_pivot = self.get_pivot(new_node.unseen)
@@ -460,12 +482,15 @@ class Mwrp(WorldMap):
 
         if self.minimize == 0:
             mtsp_cost = self.lp_model.get_mksp(all_distance_dict, pivot, new_node, all_pos, self)
+            return_cost=max(self.get_real_dis(data,self.start_pos[i]) for i, data in enumerate(new_node.location))
         elif self.minimize == 1:
             mtsp_cost = self.lp_model.get_soc(all_distance_dict, pivot, new_node, all_pos, self)
+            return_cost=sum(self.get_real_dis(data,self.start_pos[i]) for i, data in enumerate(new_node.location))
+
         else:
             print('no minimais')
         # Utils.print_serch_status(self,new_node,self.start_time,0,0,False)
-        return mtsp_cost
+        return max(mtsp_cost,return_cost)
 
     def get_heuristic(self, new_node: Node) -> int:
         """
@@ -534,10 +559,17 @@ class Mwrp(WorldMap):
     def get_new_node(self,old_state,new_state,seen_state):
         new_node = Node(old_state, new_state, seen_state, self.get_cost(new_state, old_state), self.minimize)
 
-        location = tuple(data if index not in new_node.dead_agent else self.start_pos[index] for index, data in
+        new_node.dead_agent=sorted(new_node.dead_agent)
+
+        new_node.cost= [new_node.cost[index] if index not in new_node.dead_agent else self.get_real_dis(data,self.start_pos[index])+new_node.cost[index]  for index, data in
+                         enumerate(new_node.location)]
+
+        new_node.location = tuple(data if index not in new_node.dead_agent else self.start_pos[index] for index, data in
                          enumerate(new_node.location))
-        cost= tuple(new_node.cost[index] if index not in new_node.dead_agent else self.get_real_dis(data,self.start_pos[index])+new_node.cost[index]  for index, data in
-                         enumerate(new_node.location))
+
+
+        new_node.cost_map = new_node._cost_map()
+
         return new_node
 
     def expend(self):
@@ -553,8 +585,12 @@ class Mwrp(WorldMap):
                     return False
 
         # Checks if there are no more cell left to see (len(unseen)==0)
-        if self.goal_test(old_state.unseen):
-            return old_state
+        if old_state.dead_agent.__len__()==self.number_of_agent:
+            if self.goal_test(old_state.unseen):
+                return old_state
+            else:
+                return False
+
         self.expend_node += 1
         self.H_expend += old_state.f
 
@@ -562,26 +598,26 @@ class Mwrp(WorldMap):
         for new_state in itertools.product(*self.get_all_frontire(old_state)):
 
             # There is no need to generate a situation similar to the father
-            if new_state != old_state.location:
+            #if new_state != old_state.location:
 
-                # # Rearranges agents and price (from largest to smallest) to maintain anonymity
-                # sorted_new_state, sorted_indexing = Utils.sort_list(new_state)
+            # # Rearranges agents and price (from largest to smallest) to maintain anonymity
+            # sorted_new_state, sorted_indexing = Utils.sort_list(new_state)
 
-                # Gets the list that holds the dead agents
-                # dead_list = self.get_dead_list(old_state, new_state)
+            # Gets the list that holds the dead agents
+            # dead_list = self.get_dead_list(old_state, new_state)
 
-                # Calculates the unseen list for the new node
-                seen_state = old_state.unseen - self.get_all_seen(new_state)
+            # Calculates the unseen list for the new node
+            seen_state = old_state.unseen - self.get_all_seen(new_state)
 
-                new_node = self.get_new_node(old_state, new_state, seen_state)
+            new_node = self.get_new_node(old_state, new_state, seen_state)
 
 
-                if self.huristic_index == 3:
-                    self.insert_to_open_list_lazy_max(new_node)
+            if self.huristic_index == 3:
+                self.insert_to_open_list_lazy_max(new_node)
 
-                else:
-                    # Inserts the new node to the open list
-                    self.insert_to_open_list(new_node)
+            else:
+                # Inserts the new node to the open list
+                self.insert_to_open_list(new_node)
 
         return False
 
@@ -741,13 +777,13 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 2
+    exp_number = 8
 
-    loop_number_of_agent = [3]
+    loop_number_of_agent = [2]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
-    start_in = 1
+    start_in = 3
     exp_index = 1
 
     # remove_obs_number = 1
@@ -786,4 +822,5 @@ if __name__ == '__main__':
 
                                # mwrp = Mwrp(start_pos, map_type, minimize['mksp'], max_pivot)
                                # mwrp.run(writer, map_config, start_pos, remove_obs)
+                            exp_index+=1
                             bar()

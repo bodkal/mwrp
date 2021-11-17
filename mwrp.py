@@ -730,14 +730,14 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 1
+    exp_number = 2
 
-    loop_number_of_agent = [3]
+    loop_number_of_agent = [2]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
-    start_in = 0
-    exp_index = 0
+    start_in = 1
+    exp_index = 1
 
     # remove_obs_number = 1
     # maps = pickle.load(open("all_maps_for_remove.p", "rb"))[:-1]
@@ -768,7 +768,11 @@ if __name__ == '__main__':
                     for start_pos in all_start_config_as_tupel:
                         for huristic in huristics_exp:
                             if exp_index >= start_in:
-                                world = WorldMap(np.array(row_map))
-                                mwrp = Mwrp(world, start_pos, map_type, minimize['mksp'], max_pivot)
-                                mwrp.run(writer, map_config, start_pos, remove_obs)
+                                #world = WorldMap(np.array(row_map))
+
+                                mwrp = Mwrp(start_pos, minimize['mksp'], map_type)
+                                all_path = mwrp.run(writer, map_type, start_pos, need_path=True)
+
+                               # mwrp = Mwrp(start_pos, map_type, minimize['mksp'], max_pivot)
+                               # mwrp.run(writer, map_config, start_pos, remove_obs)
                             bar()
