@@ -730,13 +730,13 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 2
+    exp_number = 8
 
     loop_number_of_agent = [2]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
-    start_in = 1
+    start_in = 6
     exp_index = 1
 
     # remove_obs_number = 1
@@ -775,4 +775,5 @@ if __name__ == '__main__':
 
                                # mwrp = Mwrp(start_pos, map_type, minimize['mksp'], max_pivot)
                                # mwrp.run(writer, map_config, start_pos, remove_obs)
+                            exp_index+=1
                             bar()

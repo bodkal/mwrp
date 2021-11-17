@@ -580,6 +580,42 @@ class LpMtsp:
        # self.get_subtoor(0, 0)
         return max([round(max_u)] + node.cost)
 
+    def get_cyclic_mksp(self, distance_dict: dict, pivot: dict, node: object, all_pos: list, world: object,x=0) -> int:
+        """
+        calculate the mksp heuristic using a cplex method
+        :param distance_dict: all edge cost
+        :param pivot: pivot cell
+        :param node: the node we want to calculate the heuristic
+        :param all_pos: pos for the plot if need
+        :param world: the world object for the plot if need
+        :return: the heuristic value as f (cost + heuristic)
+        """
+        self.mdl.set_var_ub(self.u_start_and_agent[0],1000)
+
+        all_u = self.produces_the_constraints_and_cities(pivot, distance_dict)
+
+        # bild the cost for the citys if ther is no edge biween city a and b so edge cost(a) - cost(b) = dist (a,b)
+        a, b = zip(*[(self.x[c], all_u[c[1]] == all_u[c[0]] + distance_dict[c])
+                     for c in distance_dict.keys() if c[0] != 0 and not isinstance(c[0], int)])
+        self.mdl.add_indicators(a, b, [1] * a.__len__())
+
+
+        for u_index in range(1,self.u_start_and_agent.__len__()):
+            self.mdl.set_var_ub(self.u_start_and_agent[u_index], distance_dict[(0,u_index)])
+            self.mdl.set_var_lb(self.u_start_and_agent[u_index],  distance_dict[(0,u_index)])
+
+        solucion = self.mdl.solve(log_output=False)
+        if 'optimal' not in self.mdl.solve_details.status:
+            self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
+            raise OptimaltyError
+
+        # print the resolt on nice plot
+        # self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
+
+        max_u = solucion.get_objective_value()
+       # self.get_subtoor(0, 0)
+        return max_u
+
     def get_soc(self, distance_dict: dict, pivot: dict, node: object, all_pos: list, world: object) -> int:
         """
         calculate the mksp heuristic using a cplex method
@@ -623,6 +659,7 @@ class LpMtsp:
 
         # min on max suitor
         self.mdl.add_constraints_([self.k[0] >= self.u_pivot[c] for c in pivot.keys()])
+        self.mdl.add_constraints_([self.k[0] >= self.u_start_and_agent[0]])
 
         # edges out form city's
         self.mdl.add_constraints_([self.mdl.sum(self.x[(i, j)] for i, j in distance_dict.keys() if i == c) == 1 for c in

@@ -481,11 +481,11 @@ class Mwrp(WorldMap):
         all_distance_dict, all_pos = self.get_all_distance_for_huristic(new_node, pivot)
 
         if self.minimize == 0:
-            mtsp_cost = self.lp_model.get_mksp(all_distance_dict, pivot, new_node, all_pos, self)
-            return_cost=max(self.get_real_dis(data,self.start_pos[i]) for i, data in enumerate(new_node.location))
+            mtsp_cost = self.lp_model.get_cyclic_mksp(all_distance_dict, pivot, new_node, all_pos, self)
+            return_cost=max(self.get_real_dis(data,self.start_pos[i])+new_node.cost[i] for i, data in enumerate(new_node.location))
         elif self.minimize == 1:
             mtsp_cost = self.lp_model.get_soc(all_distance_dict, pivot, new_node, all_pos, self)
-            return_cost=sum(self.get_real_dis(data,self.start_pos[i]) for i, data in enumerate(new_node.location))
+            return_cost=sum(self.get_real_dis(data,self.start_pos[i])+new_node.cost[i] for i, data in enumerate(new_node.location))
 
         else:
             print('no minimais')
@@ -579,6 +579,7 @@ class Mwrp(WorldMap):
             if not old_state.first_genarate:
                 mtsp = self.mtsp_heuristic(old_state)
                 old_state.first_genarate = True
+                #print(f"mtsp : {mtsp} \t singl : {old_state.f}")
                 if mtsp >= old_state.f:
                     old_state.f = mtsp
                     self.insert_to_open_list_lazy_max(old_state)
@@ -777,50 +778,50 @@ if __name__ == '__main__':
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 8
+    exp_number = 100
 
     loop_number_of_agent = [2]
     minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
-    start_in = 3
-    exp_index = 1
+    start_in = 0
+    exp_index = 0
 
     # remove_obs_number = 1
     # maps = pickle.load(open("all_maps_for_remove.p", "rb"))[:-1]
     # remove_obs_number=maps.__len__()
+    for number_of_agent in [2,3,4]:
+        data_file = open(f'{experement_name}_{number_of_agent}_agent_{huristics_exp[0]}_huristic.csv', 'w',
+                         newline='\n')
+        writer = csv.writer(data_file, delimiter=',')
+        writer.writerow(
+            ['map_name', 'start_state', 'time', 'h type', 'h_start', 'h_genarate', 'h_expend', 'number of max pivot',
+             'use black list', 'genarate', 'expend', 'open is beter', 'new is beter', 'obs remove', 'cost'])
 
-    data_file = open(f'{experement_name}_{loop_number_of_agent[0]}_agent_{huristics_exp[0]}_huristic.csv', 'w',
-                     newline='\n')
-    writer = csv.writer(data_file, delimiter=',')
-    writer.writerow(
-        ['map_name', 'start_state', 'time', 'h type', 'h_start', 'h_genarate', 'h_expend', 'number of max pivot',
-         'use black list', 'genarate', 'expend', 'open is beter', 'new is beter', 'obs remove', 'cost'])
+        row_map = Utils.convert_map(map_config)
+        remove_obs_number = 1
+        with alive_bar(
+                loop_number_of_agent.__len__() * exp_number * len(huristics_exp) * len(pivot) * remove_obs_number) as bar:
+            for max_pivot in pivot:
+                #for number_of_agent in loop_number_of_agent:
+                    for remove_obs in range(remove_obs_number):
+                        start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
+                                                            dtype=tuple, delimiter='\n')
+                        all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
+                        all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
 
-    row_map = Utils.convert_map(map_config)
-    remove_obs_number = 1
-    with alive_bar(
-            loop_number_of_agent.__len__() * exp_number * len(huristics_exp) * len(pivot) * remove_obs_number) as bar:
-        for max_pivot in pivot:
-            for number_of_agent in loop_number_of_agent:
-                for remove_obs in range(remove_obs_number):
-                    start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
-                                                        dtype=tuple, delimiter='\n')
-                    all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
-                    all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
+                        # all_start_config_as_tupel=list(map(tuple,all_free))
+                        # all_start_config_as_tupel=[[0]*number_of_agent]
 
-                    # all_start_config_as_tupel=list(map(tuple,all_free))
-                    # all_start_config_as_tupel=[[0]*number_of_agent]
+                        for start_pos in all_start_config_as_tupel:
+                            for huristic in huristics_exp:
+                                if exp_index >= start_in:
+                                    #world = WorldMap(np.array(row_map))
 
-                    for start_pos in all_start_config_as_tupel:
-                        for huristic in huristics_exp:
-                            if exp_index >= start_in:
-                                #world = WorldMap(np.array(row_map))
+                                    mwrp = Mwrp(start_pos, minimize['mksp'], map_type)
+                                    all_path = mwrp.run(writer, map_type, start_pos, need_path=True)
 
-                                mwrp = Mwrp(start_pos, minimize['mksp'], map_type)
-                                all_path = mwrp.run(writer, map_type, start_pos, need_path=True)
-
-                               # mwrp = Mwrp(start_pos, map_type, minimize['mksp'], max_pivot)
-                               # mwrp.run(writer, map_config, start_pos, remove_obs)
-                            exp_index+=1
-                            bar()
+                                   # mwrp = Mwrp(start_pos, map_type, minimize['mksp'], max_pivot)
+                                   # mwrp.run(writer, map_config, start_pos, remove_obs)
+                                exp_index+=1
+                                bar()
