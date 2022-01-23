@@ -1,3 +1,4 @@
+import pickle
 
 import numpy as np
 from script.utils import Node, Utils, LpMtsp
@@ -18,8 +19,8 @@ import sys
 
 class Mwrp(WorldMap):
 
-    def __init__(self,start_pos: tuple, minimize: int,map_type, huristic_index: int = 3
-                 ,max_pivot: int = 5) -> None:
+    def __init__(self,start_pos: tuple, minimize: int,map_type,maps, huristic_index: int = 3
+                 ,max_pivot: int = 5,) -> None:
         """
         :param world:           An WorldMap  object from script.world that contains the parameters of the world
         :param start_pos:       The starting position of the agents as tupel . For example for two agents : ((1,1),(4,6))
@@ -28,7 +29,7 @@ class Mwrp(WorldMap):
         :param map_name:        The name of the map. For example : maze_11_11
         :param minimize:        What we want to minimize (soc, mksp)
         """
-        super().__init__(map_type)
+        super().__init__(map_type,maps)
         self.huristic_index = huristic_index
         self.minimize = minimize
         self.start_time = 0
@@ -61,7 +62,6 @@ class Mwrp(WorldMap):
 
         # Produces the initial NODE
         start_node = Node(None, start_pos, unseen_start, [0] * start_pos.__len__(), self.minimize)
-
         # open sort from top to bottom (best down)
         self.open_list = [start_node]
         heapq.heapify(self.open_list)
@@ -95,10 +95,9 @@ class Mwrp(WorldMap):
 
         # Initializes the CPLEX object
         self.lp_model = LpMtsp(self.number_of_agent, self.pivot, all_dist)
-
+        self.pivot_black_list=[]
         # List of pivot that lower the heuristic
-        self.pivot_black_list = self.get_pivot_black_list(start_node)
-
+        self.pivot_black_list = []#self.get_pivot_black_list(start_node)
         # Need it only for the experiments
         if self.huristic_index == 3:
             self.H_start = 0
@@ -462,7 +461,6 @@ class Mwrp(WorldMap):
 
         if not pivot:
             tmp_pivot = self.get_pivot(new_node.unseen)
-
             # remove the pivot that lower the heuristic ( in pivot_black_list)
             pivot = {pivot: tmp_pivot[pivot] for pivot in tmp_pivot if pivot not in self.pivot_black_list}
 
@@ -498,6 +496,9 @@ class Mwrp(WorldMap):
         :param new_node: node that need to calclate the hes heuristic
         :return:  the h value for no eb and f value for eb
         """
+        if new_node.dead_agent.__len__()==self.number_of_agent:
+            return 0
+
         # singelton
         if self.huristic_index == 0:
             closest_pivot_dist = self.singelton_heuristic(new_node)
@@ -694,7 +695,7 @@ class Mwrp(WorldMap):
             # expend new node if goal_node is not folse the algoritem find solution
             goal_node = self.expend()
             # Checks if we have exceeded the time limit
-            if time() - self.start_time > 300 and save_to_file:
+            if time() - self.start_time > 6000 and save_to_file:
                 print('open_list size = ', self.open_list.__len__())
                 # Writes to the file all the parameters of the experiment when the cost is 0 and the time is -1
                 writer.writerow([map_config, start_pos, -1, h_type[self.huristic_index], self.H_start,
@@ -762,36 +763,47 @@ class Mwrp(WorldMap):
 
 
 if __name__ == '__main__':
-    map_type = 'maze_11_11'
-    name = 'test'
-
+    map_type = 'maze_13_13'
+    name = 'fix_remove_obs_mskp'
+    bad=[]
     # run from consul
-    # if sys.argv:
-    #    # huristics_exp = [int(sys.argv[1])]
+    if sys.argv:
+        for i in range(1,sys.argv.__len__()):
+            x=ast.literal_eval(sys.argv[i][:-1].replace(' ', ','))
+            bad.append(int(x))
+    print(bad)
     #     loop_number_of_agent = [int(sys.argv[1])]
+    #     minimize = int(sys.argv[2])
+    #     start_in = int(sys.argv[3])
+    #     end_in = int(sys.argv[4])
+       # print(f"loop_number_of_agent={loop_number_of_agent}\nminimize={minimize}\nstart_in={start_in}\nend_in={end_in}")
+    #    print(f"loop_number_of_agent=1\nminimize={minimize}\nstart_in={start_in}\nend_in={end_in}")
 
+    loop_number_of_agent=[3]
     experement_name = f'{map_type}_{name}'
     map_config = f'./config/{map_type}_config.csv'
+    # minimize = 0
+    # start_in = 3300
+    # end_in = 3301
+    # loop_number_of_agent=[2]
 
     row_map = Utils.convert_map(map_config)
 
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
     pivot = [5]
-    exp_number = 100
+    exp_number = 50
 
-    loop_number_of_agent = [2]
-    minimize = {'mksp': 0, 'soc': 1}
     huristics_exp = [3]
 
     start_in = 0
     exp_index = 0
-
-    # remove_obs_number = 1
-    # maps = pickle.load(open("all_maps_for_remove.p", "rb"))[:-1]
-    # remove_obs_number=maps.__len__()
-    for number_of_agent in [2,3,4]:
-        data_file = open(f'{experement_name}_{number_of_agent}_agent_{huristics_exp[0]}_huristic.csv', 'w',
+    end_in = 50
+    minimize=0
+    maps = pickle.load(open("all_maps_for_remove.p", "rb"))
+    remove_obs_number=maps.__len__()
+    for number_of_agent in loop_number_of_agent:
+        data_file = open(f'{experement_name}_{number_of_agent}_agent_{huristics_exp[0]}_huristic_start_in_{start_in}_{minimize}_{bad[0]}.csv', 'w',
                          newline='\n')
         writer = csv.writer(data_file, delimiter=',')
         writer.writerow(
@@ -799,29 +811,26 @@ if __name__ == '__main__':
              'use black list', 'genarate', 'expend', 'open is beter', 'new is beter', 'obs remove', 'cost'])
 
         row_map = Utils.convert_map(map_config)
-        remove_obs_number = 1
+        #remove_obs_number = 1
         with alive_bar(
                 loop_number_of_agent.__len__() * exp_number * len(huristics_exp) * len(pivot) * remove_obs_number) as bar:
             for max_pivot in pivot:
-                #for number_of_agent in loop_number_of_agent:
-                    for remove_obs in range(remove_obs_number):
+                    for remove_obs in range(1):#maps.__len__()):
+
                         start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
                                                             dtype=tuple, delimiter='\n')
                         all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
                         all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
 
-                        # all_start_config_as_tupel=list(map(tuple,all_free))
-                        # all_start_config_as_tupel=[[0]*number_of_agent]
-
+                        curr_map=maps[remove_obs]
                         for start_pos in all_start_config_as_tupel:
+                            #start_pos=(start_pos[0],start_pos[0])
                             for huristic in huristics_exp:
-                                if exp_index >= start_in:
-                                    #world = WorldMap(np.array(row_map))
+                                if exp_index in bad:
 
-                                    mwrp = Mwrp(start_pos, minimize['mksp'], map_type)
-                                    all_path = mwrp.run(writer, map_type, start_pos, need_path=True)
+                                    mwrp = Mwrp(start_pos, minimize, map_type,curr_map)
+                                    all_path = mwrp.run(writer, map_type, start_pos, need_path=True,obs_remove=remove_obs)
 
-                                   # mwrp = Mwrp(start_pos, map_type, minimize['mksp'], max_pivot)
                                    # mwrp.run(writer, map_config, start_pos, remove_obs)
                                 exp_index+=1
                                 bar()

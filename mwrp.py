@@ -1,24 +1,16 @@
 import numpy as np
-from script.utils import Node, Utils, LpMtsp
+from script.utils import Node, Utils, LpMtsp, Loger
 from script.world import WorldMap
-import matplotlib.pyplot as plt
 from operator import add
-import ast
 import itertools
-from time import time, sleep
-
-from random import randint
+from time import time
 import heapq
-
 import csv
-from alive_progress import alive_bar
-import sys
 
 
 class Mwrp(WorldMap):
 
-    def __init__(self,start_pos: tuple, minimize: int,map_type, huristic_index: int = 3
-                 ,max_pivot: int = 5) -> None:
+    def __init__(self, start_pos: tuple, minimize: int, map_type,use_black_list: bool = True, huristic_index: int = 3, max_pivot: int = 5) -> None:
         """
         :param world:           An WorldMap  object from script.world that contains the parameters of the world
         :param start_pos:       The starting position of the agents as tupel . For example for two agents : ((1,1),(4,6))
@@ -32,6 +24,7 @@ class Mwrp(WorldMap):
         self.minimize = minimize
         self.start_time = 0
         self.number_of_agent = start_pos.__len__()
+        self.use_black_list=use_black_list
 
         # we do not want to limit the number of pivot now we well limit it later in the code
         self.max_pivot = max_pivot * 10
@@ -40,20 +33,11 @@ class Mwrp(WorldMap):
         self.node_expend_index = 1
         self.genrate_node = 0
         self.expend_node = 0
-        self.H_genrate = 0
-        self.H_expend = 0
-        self.open_is_beter = 0
-        self.new_is_beter = 0
 
-        # self.real_dis_dic, self.centrality_dict = FloydWarshall(self.grid_map).run()
-
-        # # set which contains all the free cell on the map
-        # unseen_all = set(map(tuple, np.transpose(np.where(self.grid_map == 0))))
 
         self.centrality_dict = self.centrality_list_watchers(self.free_cell[1])
 
-        pivot = self.get_pivot(self.free_cell[1])
-        # start_pos=tuple(list(pivot.keys())[:self.number_of_agent])
+
 
         # Filters all the cells that can be seen from the starting position
         unseen_start = self.free_cell[1] - self.get_all_seen(start_pos)
@@ -68,10 +52,6 @@ class Mwrp(WorldMap):
         # open and close list
         self.visit_list_dic = {tuple(sorted(start_pos)): [start_node]}
 
-        # Arranges the world.centrality_dict according to a given function and filters what you see from the starting point
-        # self.centrality_dict = self.centrality_list_watchers(unseen_start)
-
-        # Utils.print_serch_status(self,start_node,self.start_time,0,0,False)
         # Pre-calculate suspicious points that will be PIVOT to save time during the run
         self.pivot = self.get_pivot(unseen_start)
 
@@ -81,9 +61,22 @@ class Mwrp(WorldMap):
         # limit the number of pivot
         self.max_pivot = max_pivot
 
+        self.init_lp_model()
+
+        if use_black_list:
+            # List of pivot that lower the heuristic
+            self.pivot_black_list = self.get_pivot_black_list(start_node)
+
+        self.mast_stand_cell=[]
+        self.mtsp_heuristic(start_node)
+
+
+    # TODO  not the best method requires improvement
+    def init_lp_model(self) -> None:
+        """
+        """
         # Calculate all the distances between the PIVOT to calculate heuristics The goal is to try to understand if
         # there are PIVOT points that lower the value of the heuristics and filter them
-        # TODO  not the best method requires improvement
         distance_pivot_pivot = {(i, j): self.get_closest_watchers(i, j) for j in self.pivot.keys()
                                 for i in self.pivot.keys() if i != j}
         distance_in_pivot = {(i, 0): 0 for i in list(self.pivot.keys()) + list(range(1, self.number_of_agent + 1))}
@@ -92,26 +85,24 @@ class Mwrp(WorldMap):
                     **{(0, i): 0 for i in range(1, self.number_of_agent + 1)},
                     **distance_pivot_pivot}
 
+
         # Initializes the CPLEX object
         self.lp_model = LpMtsp(self.number_of_agent, self.pivot, all_dist)
 
-        # List of pivot that lower the heuristic
-        self.pivot_black_list = self.get_pivot_black_list(start_node)
-
-        # Need it only for the experiments
-        if self.huristic_index == 3:
-            self.H_start = 0
-        else:
-            self.H_start = self.get_heuristic(start_node)
-
-        self.mtsp_heuristic(start_node)
-
-
-    def clean_serch(self,start_node):
+    def clean_serch(self, start_node: Node, mast_stand_cell,dict_fov) -> None:
+        """
+        refrash the MWRP serch
+        :param start_node: the parameter for starting the serch
+        """
         self.open_list = [start_node]
         heapq.heapify(self.open_list)
         self.visit_list_dic = {tuple(sorted(start_node.location)): [start_node]}
-        self.pivot_black_list=[]
+        self.number_of_agent = start_node.location.__len__()
+        self.mast_stand_cell=mast_stand_cell
+        self.dict_fov=dict_fov
+        self.init_lp_model()
+        if self.use_black_list:
+            self.pivot_black_list = self.get_pivot_black_list(start_node)
 
     def goal_test(self, unseen: set) -> bool:
         """
@@ -188,11 +179,8 @@ class Mwrp(WorldMap):
         :param unseen: the unseen set of a node
         :return: sorted list of each cell centrality
         """
-        try:
-            # create sorted list of each cell centrality based on unseen
-            list_sort_by_centrality = sorted([(self.centrality_dict[cell], cell) for cell in unseen])
-        except:
-            x = 1
+        # create sorted list of each cell centrality based on unseen
+        list_sort_by_centrality = sorted([(self.centrality_dict[cell], cell) for cell in unseen])
 
         return list_sort_by_centrality
 
@@ -220,6 +208,7 @@ class Mwrp(WorldMap):
         # get unseen list arranged according to the centrality of the watchers  (from experiments works better)
         sort_unseen = self.get_centrality_list_watchers(unseen)
 
+        # TODO can get diffrint set of pivot bast on deiffrent metod
         # get unseen list arranged according to the smallest number of watchers
         # sort_unseen = self.get_min_list_watchers(unseen)
 
@@ -247,7 +236,6 @@ class Mwrp(WorldMap):
         """
         # Need it only for the experiments
         self.genrate_node += 1
-        self.H_genrate += new_node.f
         heapq.heappush(self.open_list, new_node)
 
     def insert_to_open_list_lazy_max(self, new_node: Node) -> None:
@@ -439,9 +427,11 @@ class Mwrp(WorldMap):
 
         if not pivot:
             tmp_pivot = self.get_pivot(new_node.unseen)
-
-            # remove the pivot that lower the heuristic ( in pivot_black_list)
-            pivot = {pivot: tmp_pivot[pivot] for pivot in tmp_pivot if pivot not in self.pivot_black_list}
+            if self.use_black_list:
+                # remove the pivot that lower the heuristic ( in pivot_black_list)
+                pivot = {pivot: tmp_pivot[pivot] for pivot in tmp_pivot if pivot not in self.pivot_black_list}
+            else:
+                pivot=tmp_pivot
 
         # if there is no pivot on the map
         if pivot.__len__() == 0:
@@ -524,7 +514,7 @@ class Mwrp(WorldMap):
 
             # get frontire for spsific agent (find whit BFS)
             if index not in old_state.dead_agent:
-                all_frontire.append(self.BFS.get_frontier(agent_location, old_state.unseen))
+                all_frontire.append(self.BFS.get_frontier(agent_location, old_state.unseen,self.mast_stand_cell))
             else:
                 all_frontire.append([agent_location])
 
@@ -542,11 +532,11 @@ class Mwrp(WorldMap):
                     self.insert_to_open_list_lazy_max(old_state)
                     return False
 
+
         # Checks if there are no more cell left to see (len(unseen)==0)
         if self.goal_test(old_state.unseen):
             return old_state
         self.expend_node += 1
-        self.H_expend += old_state.f
 
         # Going through all the options to jump  for each one of the agents to produce all the valid situations
         for new_state in itertools.product(*self.get_all_frontire(old_state)):
@@ -612,11 +602,9 @@ class Mwrp(WorldMap):
                 cost_win = 1 if sum(new_node.cost) >= sum(old_node.cost) else -1
 
             if cost_win == 1 and old_node.unseen.issubset(new_node.unseen):
-                self.open_is_beter += 1
                 return False
 
             elif cost_win == -1 and new_node.unseen.issubset(old_node.unseen):
-                self.new_is_beter += 1
 
                 old_node.f = -old_node.f
                 all_index.add(index)
@@ -627,16 +615,16 @@ class Mwrp(WorldMap):
 
         return True
 
-    def run(self, writer: csv =None, map_config: str ="",save_to_file : bool = True, need_path=False, obs_remove: int = 0) -> None:
+    def run(self, loger: csv = None, map_config: str = "", save_to_file: bool = True, need_path=True) -> None:
         """
         run the algorithm and return if finds solution or 5 minutes limit
-        :param writer: the csv file holder
+        :param loger: the csv file holder (panda pkg)
         :param map_config: name of the experiment
         :param obs_remove: number of obstacle remove (for the experiment)
         :return:
         """
 
-        start_pos=self.open_list[0].location
+        start_pos = self.open_list[0].location
         # Writes to the file the type of heuristic that is activated
         h_type = {0: 'singlton', 1: 'max', 2: 'mtsp', 3: 'laze max', 4: 'BFS'}
         self.start_time = time()
@@ -645,31 +633,23 @@ class Mwrp(WorldMap):
         while not goal_node:
             # expend new node if goal_node is not folse the algoritem find solution
             goal_node = self.expend()
+
             # Checks if we have exceeded the time limit
-            if time() - self.start_time > 300 and save_to_file:
-                print('open_list size = ', self.open_list.__len__())
+            if time() - self.start_time > 30000 and save_to_file:
+                print('timute !!!   open_list size = ', self.open_list.__len__())
                 # Writes to the file all the parameters of the experiment when the cost is 0 and the time is -1
-                writer.writerow([map_config, start_pos, -1, h_type[self.huristic_index], self.H_start,
-                                 self.H_genrate / self.genrate_node,
-                                 self.H_expend / self.expend_node, self.max_pivot, 0, self.genrate_node,
-                                 self.expend_node, self.open_is_beter, self.new_is_beter, obs_remove,
-                                 [0] * self.number_of_agent])
+                loger.write([map_config, start_pos, -1, self.minimize, self.max_pivot, self.use_black_list, self.genrate_node, self.expend_node,0])
+
                 return
 
         all_path = self.get_path(goal_node, need_path)
 
-        if self.genrate_node > 0:
-            h_gen = self.H_genrate / self.genrate_node
-            h_exp = self.H_expend / self.expend_node
-        else:
-            h_gen = self.H_genrate
-            h_exp = self.H_expend
 
         if save_to_file:
             # Writes to the file all the parameters of the experiment
-            writer.writerow([map_config, start_pos, time() - self.start_time, h_type[self.huristic_index], self.H_start,
-                             h_gen, h_exp, self.max_pivot, 0, self.genrate_node, self.expend_node,
-                             self.open_is_beter, self.new_is_beter, obs_remove, goal_node.cost])
+            loger.write([map_config, start_pos,  time() - self.start_time, self.minimize, self.max_pivot, self.use_black_list, self.genrate_node,
+                 self.expend_node, goal_node.cost])
+
 
         return all_path
 
@@ -688,7 +668,7 @@ class Mwrp(WorldMap):
             node = gole_node
             # geting all jump points
             while node.parent is not None:
-                if not print_path:
+                if print_path:
                     print(node)
 
                 # fix usicronic sort (the agent jumps between paths)
@@ -696,7 +676,7 @@ class Mwrp(WorldMap):
                 node = node.parent
             all_jump_points.append(node.location)
 
-            if not print_path:
+            if print_path:
                 print(node)
 
             # reverse point because need path from start to goal
@@ -706,21 +686,14 @@ class Mwrp(WorldMap):
             dict_all_path = {i: [all_jump_points[0][i]] for i in range(self.number_of_agent)}
             for index in range(1, all_jump_points.__len__()):
                 for i in range(self.number_of_agent):
-                    dict_all_path[i].extend(
-                        self.BFS.get_path(all_jump_points[index - 1][i], all_jump_points[index][i]))
+                    dict_all_path[i].extend(self.BFS.get_path(all_jump_points[index - 1][i], all_jump_points[index][i]))
 
             return dict_all_path
         return {}
 
-
 if __name__ == '__main__':
     map_type = 'maze_11_11'
-    name = 'test'
-
-    # run from consul
-    # if sys.argv:
-    #    # huristics_exp = [int(sys.argv[1])]
-    #     loop_number_of_agent = [int(sys.argv[1])]
+    name = 'same_pos_agent'
 
     experement_name = f'{map_type}_{name}'
     map_config = f'./config/{map_type}_config.csv'
@@ -729,51 +702,22 @@ if __name__ == '__main__':
 
     all_free = np.transpose(np.where(np.array(row_map) == 0))
 
-    pivot = [5]
-    exp_number = 8
+    #exempel for serch parmeter
+    pivot = 5
+    all_minimize_opthion = {'mksp': 0, 'soc': 1}
+    minimize=all_minimize_opthion['mksp']
+    number_of_agent = 2
+    huristics=3
+    start_pos=((1,1),(11,11))
+    use_black_list=True
 
-    loop_number_of_agent = [2]
-    minimize = {'mksp': 0, 'soc': 1}
-    huristics_exp = [3]
 
-    start_in = 6
-    exp_index = 1
+    data_file = f'{experement_name}_{number_of_agent}_agent_{huristics}_minimize_{Utils.get_key_from_value(all_minimize_opthion,minimize)}.csv'
+    titel_list =  ['map_name', 'start_state', 'time','minimize', 'number of max pivot','use black list', 'genarate', 'expend', 'cost']
+    loger = Loger(data_file, titel_list)
 
-    # remove_obs_number = 1
-    # maps = pickle.load(open("all_maps_for_remove.p", "rb"))[:-1]
-    # remove_obs_number=maps.__len__()
 
-    data_file = open(f'{experement_name}_{loop_number_of_agent[0]}_agent_{huristics_exp[0]}_huristic.csv', 'w',
-                     newline='\n')
-    writer = csv.writer(data_file, delimiter=',')
-    writer.writerow(
-        ['map_name', 'start_state', 'time', 'h type', 'h_start', 'h_genarate', 'h_expend', 'number of max pivot',
-         'use black list', 'genarate', 'expend', 'open is beter', 'new is beter', 'obs remove', 'cost'])
+    mwrp = Mwrp(start_pos, minimize, map_type,use_black_list=use_black_list)
+    all_path = mwrp.run(loger, map_type)
+    print(all_path)
 
-    row_map = Utils.convert_map(map_config)
-    remove_obs_number = 1
-    with alive_bar(
-            loop_number_of_agent.__len__() * exp_number * len(huristics_exp) * len(pivot) * remove_obs_number) as bar:
-        for max_pivot in pivot:
-            for number_of_agent in loop_number_of_agent:
-                for remove_obs in range(remove_obs_number):
-                    start_config_as_string = np.loadtxt(f'./config/{map_type}_{number_of_agent}_agent_domain.csv',
-                                                        dtype=tuple, delimiter='\n')
-                    all_start_config_as_tupel = [ast.literal_eval(i) for i in start_config_as_string]
-                    all_start_config_as_tupel = all_start_config_as_tupel[:exp_number]
-
-                    # all_start_config_as_tupel=list(map(tuple,all_free))
-                    # all_start_config_as_tupel=[[0]*number_of_agent]
-
-                    for start_pos in all_start_config_as_tupel:
-                        for huristic in huristics_exp:
-                            if exp_index >= start_in:
-                                #world = WorldMap(np.array(row_map))
-
-                                mwrp = Mwrp(start_pos, minimize['mksp'], map_type)
-                                all_path = mwrp.run(writer, map_type, start_pos, need_path=True)
-
-                               # mwrp = Mwrp(start_pos, map_type, minimize['mksp'], max_pivot)
-                               # mwrp.run(writer, map_config, start_pos, remove_obs)
-                            exp_index+=1
-                            bar()

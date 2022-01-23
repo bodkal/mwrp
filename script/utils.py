@@ -207,88 +207,6 @@ class Utils:
         return row_map
 
 
-class PathNode:
-    def __init__(self, location, child ,perent = None):
-        self.location = location
-        self.child = [child]  # {0: child}
-        self.perent = perent
-
-    # self.next_step = 0
-
-    def _next(self):
-        try:
-            if self.child[-1] is not None:
-                chosen_child=self.child[-1]
-                self.child=self.child[::-1]
-
-                return chosen_child
-            return None
-        except:
-            x=1
-
-    def _prev(self):
-        if self.perent is not None:
-            return self.perent
-        return None
-
-
-class PathGrath:
-    def __init__(self, path):
-        path_graf = [PathNode(path[-1], None)]
-        for i in range(path.__len__() - 2, -1, -1):
-            path_graf.append(PathNode(path[i], path_graf[-1]))
-        for i in range(1, path.__len__()):
-            path_graf[i - 1].perent = path_graf[i]
-        path_graf = path_graf[::-1]
-
-        self.path = path_graf #{i.location: i for i in path_graf}
-
-        self.current = self.path[0]
-
-    def get_all_next_path(self, node):
-        path = []
-        while node.child[-1] != None:
-            path.append(node.location)
-            node = node.child[-1]
-        path.append(node.location)
-        return path
-
-    def get_all_peve_path(self):
-        path = []
-        node=self.current
-        while node.perent != None:
-            path.append(node.location)
-            node = node.perent
-        path.append(node.location)
-        return path
-
-    def next_step(self):
-        tmp = self.current._next()
-        if tmp != None:
-            self.current = tmp
-        return self.current
-
-    def insert_path(self,path):
-        into=self.current
-        out=self.current
-
-        while into.location is not path[-1]:
-            into = into.child[-1]
-        while out.location is not path[0]:
-            out = out.child[-1]
-
-        tmp_node=into
-
-        for cell in path[::-1][1:-1]:
-            self.path.append(PathNode(cell,child=tmp_node))
-            tmp_node=self.path[-1]
-
-        out.child.append(self.path[-1])
-
-        while out.child[-1] is not into:
-            out.child[-1].perent=out
-            out=out.child[-1]
-
 class Node:
 
     def __init__(self, parent: object, location: tuple, unseen: set, cost: list, minimize: bool, f: int = 0) -> object:
@@ -612,7 +530,7 @@ class LpMtsp:
         # print the resolt on nice plot
         # self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
 
-        max_u = solucion.get_objective_value()
+        max_u = int(solucion.get_objective_value())
        # self.get_subtoor(0, 0)
         return max_u
 
@@ -638,9 +556,9 @@ class LpMtsp:
             self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
             raise OptimaltyError
 
-        max_u = solucion.get_objective_value()
+        sum_u = int(solucion.get_objective_value())
 
-        return max_u
+        return sum_u
 
     def produces_the_constraints_and_cities(self, pivot: dict, distance_dict: dict) -> dict:
         """
@@ -741,3 +659,17 @@ class OptimaltyError(Exception):
 
     def __str__(self):
         return self.message
+
+
+import pandas as pd
+
+
+class Loger:
+
+    def __init__(self,data_file,titel_list):
+        self.data_file=data_file
+        self.write(titel_list)
+
+    def write(self,data):
+        df = pd.DataFrame([data])
+        df.to_csv(self.data_file,mode='a', index=False,header=False)

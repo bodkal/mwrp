@@ -90,7 +90,7 @@ class BFS:
         # run over all action and generate all children
         for action in self._get_all_action(old_node):
             if action not in self.visit_node:
-                if self.world.dict_fov[action] & self.unseen == set():
+                if self.world.dict_fov[action] & self.unseen == set() and action not in self.mast_stand_cell:
                     # dident see any new cell
                     self._insert_to_open_list(Node(action, old_node.cost + 1, old_node))
                 else:
@@ -149,7 +149,7 @@ class BFS:
 
         return False
 
-    def get_frontier(self, start: tuple, unseen: set) -> list:
+    def get_frontier(self, start: tuple, unseen: set,mast_stand_cell : list = []) -> list:
         """
         get all frontier cell (see new cells)
         :param start: agent location
@@ -162,7 +162,7 @@ class BFS:
 
         self.frontier = [start]
         self.visit_node = {self.start: None}
-
+        self.mast_stand_cell=mast_stand_cell
         while self.open_list.__len__() > 0:
             self._expend_frontier_search()
 

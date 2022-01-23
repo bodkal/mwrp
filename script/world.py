@@ -7,7 +7,7 @@ import pickle
 
 class WorldMap:
 
-    def __init__(self, map_type: str) -> None:
+    def __init__(self, map_type: str,maps=0) -> None:
         """
         hold the world object
         :param map_config: map type name
@@ -27,6 +27,7 @@ class WorldMap:
         # BFS metod for expending border
         self.BFS = BFS(self)
         # Checks whether we have previously calculated the distance between all the cell on the map and the centrality
+
         try:
             self.real_dis_dic = pickle.load(open(f"./config/real_dis_dic_{map_type}.p", "rb"))
             self.centrality_dict = pickle.load(open(f"./config/centrality_dict_{map_type}.p", "rb"))
@@ -39,15 +40,14 @@ class WorldMap:
             print('end FloydWarshall')
 
 
-    def remove_from_fov(self,cell):
+    def remove_from_fov(self,all_cell):
         tmp_cell=[]
-        for key in self.dict_fov:
-            if cell.issubset(self.dict_fov[key]) and cell != {key}:
-                self.dict_fov[key]=self.dict_fov[key]-cell
-                tmp_cell.append(key)
-        # for key in self.dict_fov:
-        #     if cell.issubset(self.dict_fov[key]):
-        #         print(True)
+        for cell in all_cell:
+            for key in self.dict_fov:
+                if cell in self.dict_fov[key] and cell != key:
+                    self.dict_fov[key]=self.dict_fov[key]-{cell}
+                    tmp_cell.append(key)
+
         return tmp_cell
 
     def is_obstical(self, state: tuple) -> bool:
@@ -180,7 +180,7 @@ class WorldMap:
         :param state: all agent location
         :return: set off all seen cell
         """
-        tmp_set_seen = set()
+        tmp_set_seen = set(state)
         for cell in state:
             tmp_set_seen = tmp_set_seen.union(self.dict_fov[cell])
         return tmp_set_seen
