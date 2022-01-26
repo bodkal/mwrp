@@ -38,7 +38,6 @@ class Mwrp(WorldMap):
         self.centrality_dict = self.centrality_list_watchers(self.free_cell[1])
 
 
-
         # Filters all the cells that can be seen from the starting position
         unseen_start = self.free_cell[1] - self.get_all_seen(start_pos)
 

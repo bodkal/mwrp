@@ -493,9 +493,12 @@ class LpMtsp:
 
         # print the resolt on nice plot
         # self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
-
         max_u = solucion.get_objective_value()
-       # self.get_subtoor(0, 0)
+
+        if max_u is None:
+            print("----------------------------nooooooooooooooo-----------------------------------")
+            max_u=0.0
+
         return max([round(max_u)] + node.cost)
 
     def get_cyclic_mksp(self, distance_dict: dict, pivot: dict, node: object, all_pos: list, world: object,x=0) -> int:
