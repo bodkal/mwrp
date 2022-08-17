@@ -12,10 +12,10 @@ class WorldMap:
         hold the world object
         :param map_config: map type name
         """
-        map_config = f'./config/{map_type}_config.csv'
+        map_config = f'../config/{map_type}_config.csv'
 
         # world parmeter
-        self.grid_map = np.array(Utils.convert_map(map_config)).astype(np.int8)
+        self.grid_map = np.array(Utils.convert_map(map_config)).astype(np.int16)
         self.vision = Vision(self.grid_map)
         [self.col_max, self.row_max] = self.grid_map.shape
         self.free_cell = (len((np.where(self.grid_map == 0)[0])),set(map(tuple,np.array(np.where(self.grid_map == 0)).T)))
@@ -35,8 +35,8 @@ class WorldMap:
             # calculated the distance between all the cell on the map and the centrality and save to file
             print('start FloydWarshall')
             self.real_dis_dic, self.centrality_dict = FloydWarshall(self.grid_map).run()
-            pickle.dump(self.real_dis_dic, open(f"./config/real_dis_dic_{map_type}.p", "wb"))
-            pickle.dump(self.centrality_dict, open(f"./config/centrality_dict_{map_type}.p", "wb"))
+            pickle.dump(self.real_dis_dic, open(f"../config/real_dis_dic_{map_type}.p", "wb"))
+            pickle.dump(self.centrality_dict, open(f"../config/centrality_dict_{map_type}.p", "wb"))
             print('end FloydWarshall')
 
 

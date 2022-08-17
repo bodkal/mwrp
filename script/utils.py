@@ -60,7 +60,7 @@ class Utils:
         plt.show()
 
     @staticmethod
-    def print_map(world: object) -> None:
+    def print_map(grid_map: object) -> None:
         """
         Displays only  the map
         :param world: map object
@@ -68,7 +68,7 @@ class Utils:
         colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
         # white    black       blue            red     yellow      green           grey
         cmap = c.ListedColormap([colors[i] for i in [0, 1]])
-        plt.pcolormesh(world.grid_map, cmap=cmap, edgecolors='black', linewidth=0.01)
+        plt.pcolormesh(grid_map, cmap=cmap, edgecolors='black', linewidth=0.01)
         plt.gca().set_aspect('equal')
         plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
 
@@ -155,6 +155,32 @@ class Utils:
         plt.show()
 
     @staticmethod
+    def print_mwrp_path(mwrp, all_agent):
+        colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
+
+        tmp = np.copy(mwrp.grid_map) * 5
+        tmp = np.hstack((tmp, np.zeros((tmp.shape[0], 1))))
+
+
+        # Paint the cell with the location of the agents
+        for agent_id in all_agent:
+            for step in all_agent[agent_id]:
+                tmp[step] = (agent_id + 1)
+
+        # Paint the cell with the pivot and ther whacers
+
+        cmap = c.ListedColormap([colors[i] for i in [0, 5, 3, 0, 4, 6, 1]])
+
+        plt.pcolormesh(tmp, cmap=cmap, edgecolors='black', linewidth=0.01)
+        plt.gca().set_aspect('equal')
+        plt.gca().set_ylim(plt.gca().get_ylim()[::-1])
+
+        plt.show()
+
+
+
+
+    @staticmethod
     def print_exexute(world, all_agent):
         colors = [(1, 1, 1), (0, 0, 0), (0.2, 0.2, 1), (1, 0, 0), (1, 1, 0), (0, 0.6, 0.05), (0.5, 0.5, 0.5)]
 
@@ -181,6 +207,9 @@ class Utils:
         plt.draw()
         plt.pause(0.001)
         plt.clf()  # self.col_max,
+
+
+
 
     @staticmethod
     def get_key_from_value(my_dict, val):
@@ -491,13 +520,15 @@ class LpMtsp:
             self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
             raise OptimaltyError
 
-        # print the resolt on nice plot
-        # self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
-        max_u = solucion.get_objective_value()
 
-        if max_u is None:
+
+        if solucion is None:
             print("----------------------------nooooooooooooooo-----------------------------------")
             max_u=0.0
+        else:
+            # print the resolt on nice plot
+            # self.print_SD_MTSP_on_map(distance_dict, pivot, node, all_pos, world)
+            max_u = solucion.get_objective_value()
 
         return max([round(max_u)] + node.cost)
 
